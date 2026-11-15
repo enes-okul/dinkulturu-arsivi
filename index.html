@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Belge Doldurucu – Word Şablonunu Saniyeler İçinde Doldur</title>
-<meta name="description" content="Word (.docx) şablonunu yükle, ad soyad, okul adı gibi bilgileri gir, hazır belgeyi indir. Ücretsiz, kayıt gerektirmez, belgeniz cihazınızdan çıkmaz.">
+<meta name="description" content="Günlük plan, yıllık plan, BEP planı ve sınav kâğıdı: bilgilerini gir, hazır Word belgeni indir. Ücretsiz, kayıt gerektirmez.">
 <meta property="og:title" content="Belge Doldurucu">
-<meta property="og:description" content="Word şablonunu yükle, bilgileri gir, hazır belgeyi indir. Ücretsiz ve gizli.">
+<meta property="og:description" content="Bilgilerini gir, hazır Word belgeni indir. Ücretsiz ve gizli.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -86,83 +86,78 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 <nav class="drawer" id="drawer" aria-label="Menü"><div class="dh"><div class="badge sm">📄</div>Belge Doldurucu</div></nav>
 <div class="wrap">
   <section id="home">
-    <div class="hero"><h1>Hoş geldiniz 👋</h1><p>Word belgelerinizi yükleyin, bilgilerinizi girin, hazır belgeyi saniyeler içinde indirin. Ücretsiz ve gizli.</p></div>
+    <div class="hero"><h1>Hoş geldiniz 👋</h1><p>Bilgilerinizi girin, hazır Word belgenizi saniyeler içinde indirin. Ücretsiz ve gizli.</p></div>
     <div class="grid" id="hgrid"></div>
   </section>
   <section id="tool" class="hide">
     <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
 
-  <div class="card" id="s1">
-    <div class="step"><div class="num">1</div><h2>Word şablonunu yükle</h2></div>
-    <label class="drop" id="drop" for="fi">
-      <div class="ic">📤</div><b>.docx dosyanı buraya bırak veya dokun</b><span>Sadece Word (.docx) dosyaları</span>
-    </label>
-    <input type="file" id="fi" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-    <p class="hint">Şablonda doldurulacak yerleri çift süslü parantezle yaz: <span id="codes"></span>. Sayfa bunları otomatik bulur ve her biri için bir kutu açar. Yazı biçimi (kalın, renk, font) korunur.</p>
-    <div class="row"><button class="btn ghost" id="sample">Örnek şablon indir</button></div>
-    <div class="msg err hide" id="err"></div>
-  </div>
-
-  <div class="card hide" id="s2">
-    <div class="step"><div class="num">2</div><h2>Bilgileri doldur</h2></div>
-    <div class="file"><span id="fname"></span><button id="reset">Kaldır</button></div>
+  <div class="card" id="fcard">
     <div id="fields"></div>
-    <div class="row"><button class="btn" id="go">⬇ Word olarak indir</button></div>
+    <div class="row"><button class="btn" id="go" disabled>⬇ Word olarak indir</button></div>
+    <div class="msg err hide" id="err"></div>
     <div class="msg ok hide" id="ok"></div>
   </div>
-
   </section>
-  <footer>🔒 Belgeniz hiçbir yere gönderilmez; tüm işlem tarayıcınızda yapılır.<br>Girdiğiniz bilgiler yalnızca bu cihazda hatırlanır.</footer>
+  <footer>🔒 Girdiğiniz bilgiler hiçbir yere gönderilmez; belge tarayıcınızda hazırlanır.<br>Okul ve öğretmen adı yalnızca bu cihazda hatırlanır.</footer>
 </div>
 
 <script>
 const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const XNS='http://www.w3.org/XML/1998/namespace';
 const RE=/\{\{\s*([^{}]+?)\s*\}\}/g;
 const PART=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
 const $=id=>document.getElementById(id);
-let zip=null,srcs={},fileName='',keys=[];
+const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenci adı',TARIH:'Tarih'};
+const SEC={
+ 'gunluk-plan':{t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
+ 'yillik-plan':{t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
+ 'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
+ 'sinav-olustur':{t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
+};
+const REMEMBER=['OKUL_ADI','AD_SOYAD'];
+const label=k=>LAB[k]||k.replace(/_/g,' ').toLocaleLowerCase('tr').replace(/(^|\s)\S/g,m=>m.toLocaleUpperCase('tr'));
+const store={get(k){try{return localStorage.getItem('bd_'+k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem('bd_'+k,v)}catch(e){}}};
+let zip=null,srcs={},seq=0,cur='';
 
 const ownerP=n=>{while(n&&!(n.localName==='p'&&n.namespaceURI===W))n=n.parentNode;return n};
 const tNodes=p=>[...p.getElementsByTagNameNS(W,'t')].filter(t=>ownerP(t.parentNode)===p);
 const parse=s=>{const d=new DOMParser().parseFromString(s,'application/xml');if(d.getElementsByTagName('parsererror').length)throw new Error('xml');return d};
-const label=k=>k.replace(/_/g,' ').toLocaleLowerCase('tr').replace(/(^|\s)\S/g,m=>m.toLocaleUpperCase('tr'));
-const store={get(k){try{return localStorage.getItem('bd_'+k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem('bd_'+k,v)}catch(e){}}};
+const msg=(id,t)=>{const e=$(id);e.textContent=t;e.classList.toggle('hide',!t)};
 
-function showErr(m){const e=$('err');e.textContent=m;e.classList.toggle('hide',!m)}
-
-async function load(file){
-  showErr('');$('ok').classList.add('hide');
-  if(!/\.docx$/i.test(file.name)){showErr('Lütfen .docx uzantılı bir Word dosyası seçin.');return}
+async function loadTemplate(id){
   try{
-    zip=await JSZip.loadAsync(await file.arrayBuffer());
-    srcs={};const count={};
-    for(const n of Object.keys(zip.files)){
-      if(!PART.test(n))continue;
-      const s=await zip.file(n).async('string');srcs[n]=s;
-      for(const p of parse(s).getElementsByTagNameNS(W,'p')){
-        const t=tNodes(p).map(x=>x.textContent).join('');
-        for(const m of t.matchAll(RE)){const k=m[1].trim();count[k]=(count[k]||0)+1}
-      }
-    }
-    keys=Object.keys(count);
-    if(!keys.length){showErr('Bu belgede {{ALAN_ADI}} biçiminde işaretli yer bulunamadı. Şablonda doldurulacak yerleri {{AD_SOYAD}} gibi yazın.');zip=null;return}
-    fileName=file.name.replace(/\.docx$/i,'');
-    $('fname').textContent='📎 '+file.name;
-    const box=$('fields');box.innerHTML='';
-    keys.forEach(k=>{
-      const d=document.createElement('div');d.className='field';
-      const l=document.createElement('label');l.textContent=label(k);
-      if(count[k]>1){const s=document.createElement('small');s.textContent=count[k]+' yerde kullanılıyor';l.appendChild(s)}
-      const i=document.createElement('input');i.type='text';i.dataset.key=k;i.value=store.get(k);i.autocomplete='off';
-      d.append(l,i);box.appendChild(d);
-    });
-    $('s1').classList.add('hide');$('s2').classList.remove('hide');
-  }catch(e){showErr('Dosya okunamadı. Dosyanın bozuk olmadığından ve gerçek bir .docx olduğundan emin olun.');zip=null}
+    const r=await fetch(id+'.docx',{cache:'no-cache'});
+    if(!r.ok)return false;
+    const z=await JSZip.loadAsync(await r.arrayBuffer());
+    const o={};
+    for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
+    if(!o['word/document.xml'])return false;
+    zip=z;srcs=o;return true;
+  }catch(e){return false}
 }
-
-async function build(){
-  const vals={};
-  document.querySelectorAll('#fields input').forEach(i=>{vals[i.dataset.key]=i.value.replace(/\s*\n\s*/g,' ');store.set(i.dataset.key,i.value)});
+function keysOf(){
+  const out=[];
+  for(const s of Object.values(srcs)){
+    for(const p of parse(s).getElementsByTagNameNS(W,'p')){
+      const t=tNodes(p).map(x=>x.textContent).join('');
+      for(const m of t.matchAll(RE)){const k=m[1].trim();if(!out.includes(k))out.push(k)}
+    }
+  }
+  return out;
+}
+function renderForm(sec){
+  const list=sec.f.concat(keysOf().filter(k=>!sec.f.includes(k)));
+  const box=$('fields');box.innerHTML='';
+  list.forEach(k=>{
+    const d=document.createElement('div');d.className='field';
+    const l=document.createElement('label');l.textContent=label(k);
+    const i=document.createElement('input');i.type='text';i.dataset.key=k;i.autocomplete='off';
+    i.value=k==='TARIH'?new Date().toLocaleDateString('tr-TR'):(REMEMBER.includes(k)?store.get(k):'');
+    d.append(l,i);box.appendChild(d);
+  });
+}
+async function build(vals){
   const out=await JSZip.loadAsync(await zip.generateAsync({type:'uint8array'}));
   for(const [n,s] of Object.entries(srcs)){
     const doc=parse(s);
@@ -178,56 +173,46 @@ async function build(){
         for(let k=i+1;k<j;k++)strs[k]='';
         if(i===j)strs[i]=a+vals[key]+b;else{strs[i]=a+vals[key];strs[j]=b}
       }
-      nodes.forEach((t,k)=>{t.textContent=strs[k];t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve')});
+      nodes.forEach((t,k)=>{t.textContent=strs[k];t.setAttributeNS(XNS,'xml:space','preserve')});
     }
     out.file(n,'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+new XMLSerializer().serializeToString(doc).replace(/^\s*<\?xml[^>]*\?>\s*/,''));
   }
   return out.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});
 }
-
 function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 
-$('fi').onchange=e=>{if(e.target.files[0])load(e.target.files[0]);e.target.value=''};
-const dz=$('drop');
-['dragenter','dragover'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.add('over')}));
-['dragleave','drop'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.remove('over')}));
-dz.addEventListener('drop',e=>{if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])});
-function resetTool(){zip=null;showErr('');$('ok').classList.add('hide');$('s2').classList.add('hide');$('s1').classList.remove('hide')}
-$('reset').onclick=resetTool;
 $('go').onclick=async()=>{
-  const b=$('go');b.disabled=true;b.textContent='Hazırlanıyor…';
-  try{save(await build(),fileName+'_dolu.docx');$('ok').textContent='✅ Belge hazırlandı ve indirildi.';$('ok').classList.remove('hide')}
-  catch(e){$('ok').textContent='Belge hazırlanırken bir hata oluştu.';$('ok').classList.remove('hide')}
+  const b=$('go');b.disabled=true;b.textContent='Hazırlanıyor…';msg('ok','');msg('err','');
+  try{
+    const vals={};
+    document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
+    save(await build(vals),cur+'_hazir.docx');
+    msg('ok','✅ Belge hazırlandı ve indirildi.');
+  }catch(e){msg('err','Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
 };
 
-$('sample').onclick=async()=>{
-  const z=new JSZip(),P=t=>'<w:p><w:r><w:t xml:space="preserve">'+t+'</w:t></w:r></w:p>';
-  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
-  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-  z.file('word/document.xml','<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="'+W+'"><w:body>'+SEC[cur].sample.map(x=>P(x)).join('')+'</w:body></w:document>');
-  save(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'}),'ornek_'+cur+'.docx');
-};
-
-const SEC={
- 'gunluk-plan':{t:'Günlük Plan',i:'📅',d:'Günlük plan Word dosyanızı yükleyin, bilgileri girin, hazır planı indirin.',codes:['AD_SOYAD','OKUL_ADI','SINIF','TARIH'],sample:['GÜNLÜK PLAN','Okul: {{OKUL_ADI}}','Öğretmen: {{AD_SOYAD}}','Sınıf: {{SINIF}}','Tarih: {{TARIH}}']},
- 'yillik-plan':{t:'Yıllık Plan',i:'🗓️',d:'Yıllık plan Word dosyanızı yükleyin, bilgileri girin, hazır planı indirin.',codes:['AD_SOYAD','OKUL_ADI','DERS','EGITIM_YILI'],sample:['YILLIK PLAN','Okul: {{OKUL_ADI}}','Öğretmen: {{AD_SOYAD}}','Ders: {{DERS}}','Eğitim Öğretim Yılı: {{EGITIM_YILI}}']},
- 'bep-plan':{t:'BEP Planı',i:'🧩',d:'BEP Word dosyanızı yükleyin, öğrenci ve okul bilgilerini girin, hazır planı indirin.',codes:['OGRENCI_ADI','SINIF','OKUL_ADI','AD_SOYAD'],sample:['BİREYSELLEŞTİRİLMİŞ EĞİTİM PLANI','Okul: {{OKUL_ADI}}','Öğrenci: {{OGRENCI_ADI}}','Sınıf: {{SINIF}}','Öğretmen: {{AD_SOYAD}}']},
- 'sinav-olustur':{t:'Sınav Oluştur',i:'📝',d:'Sınav kâğıdı Word şablonunuzu yükleyin, bilgileri girin, hazır sınavı indirin.',codes:['OKUL_ADI','DERS','SINIF','AD_SOYAD'],sample:['SINAV KÂĞIDI','Okul: {{OKUL_ADI}}','Ders: {{DERS}}','Sınıf: {{SINIF}}','Öğretmen: {{AD_SOYAD}}']}
-};
-let cur='gunluk-plan';
 const nav=$('drawer');
 nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).map(([k,v])=>'<a href="#'+k+'" data-id="'+k+'"><span>'+v.i+'</span>'+v.t+'</a>').join(''));
-$('hgrid').innerHTML=Object.entries(SEC).map(([k,v])=>'<a class="hcard" href="#'+k+'"><div class="e">'+v.i+'</div><b>'+v.t+'</b><span>'+v.d.split(',')[0]+'</span></a>').join('');
+$('hgrid').innerHTML=Object.entries(SEC).map(([k,v])=>'<a class="hcard" href="#'+k+'"><div class="e">'+v.i+'</div><b>'+v.t+'</b><span>'+v.s+'</span></a>').join('');
 const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
 $('ov').onclick=()=>menu(false);
 addEventListener('keydown',e=>{if(e.key==='Escape')menu(false)});
+
+async function openSec(id,sec){
+  const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
+  $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
+  const ok=await loadTemplate(id);
+  if(my!==seq)return;
+  if(!ok){$('fields').innerHTML='';msg('err','Bu bölümün şablonu henüz eklenmedi.');return}
+  renderForm(sec);$('go').disabled=false;
+}
 function route(){
   const id=location.hash.slice(1),sec=SEC[id];
   $('home').classList.toggle('hide',!!sec);$('tool').classList.toggle('hide',!sec);
   nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===(sec?id:'home')));
-  if(sec){cur=id;$('ptitle').textContent=sec.i+' '+sec.t;$('pdesc').textContent=sec.d;$('codes').innerHTML=sec.codes.map(c=>'<code>{{'+c+'}}</code>').join(' ');resetTool()}
+  if(sec){cur=id;$('ptitle').textContent=sec.i+' '+sec.t;$('pdesc').textContent=sec.d;openSec(id,sec)}
   menu(false);window.scrollTo(0,0);
 }
 addEventListener('hashchange',route);route();
