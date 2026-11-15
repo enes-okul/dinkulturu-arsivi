@@ -58,11 +58,39 @@ code{background:var(--violet-s);color:var(--violet-d);padding:1px 6px;border-rad
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .hide{display:none}
 footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;line-height:1.6}
+
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;background:#fff;border-bottom:1px solid var(--line);padding:10px 14px}
+#menuBtn{width:42px;height:42px;border:none;background:var(--violet-s);border-radius:12px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;cursor:pointer}
+#menuBtn span{display:block;width:20px;height:2.5px;background:var(--violet-d);border-radius:2px}
+.tbrand{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-size:1.05rem}
+.badge.sm{width:32px;height:32px;border-radius:10px;font-size:1rem}
+.overlay{position:fixed;inset:0;background:rgba(22,32,43,.45);opacity:0;pointer-events:none;transition:.2s;z-index:30}
+.overlay.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:82%;background:#fff;z-index:40;transform:translateX(-100%);transition:.22s;padding:20px 12px;display:flex;flex-direction:column;gap:4px;box-shadow:4px 0 24px rgba(0,0,0,.12)}
+.drawer.open{transform:none}
+.drawer .dh{display:flex;align-items:center;gap:10px;padding:0 8px 16px;margin-bottom:8px;border-bottom:1px solid var(--line);font-family:'Space Grotesk',sans-serif;font-weight:700}
+.drawer a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
+.drawer a.on{background:var(--violet-s);color:var(--violet-d)}
+.hero{background:linear-gradient(135deg,var(--violet),#8F87FF);color:#fff;border-radius:20px;padding:26px 20px;margin-bottom:16px}
+.hero h1{font-size:1.5rem}.hero p{margin:8px 0 0;opacity:.92;line-height:1.5;font-weight:600}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;text-decoration:none;color:var(--ink)}
+.hcard .e{font-size:1.8rem}.hcard b{display:block;margin:8px 0 3px;font-family:'Space Grotesk',sans-serif}
+.hcard span{color:var(--muted);font-size:.8rem;font-weight:600;line-height:1.4}
+.phead{margin-bottom:14px}.phead h1{font-size:1.4rem}.phead p{color:var(--muted);margin:6px 0 0;font-size:.9rem;font-weight:600}
 </style>
 </head>
 <body>
+<header class="top"><button id="menuBtn" aria-label="Menüyü aç"><span></span><span></span><span></span></button><div class="tbrand"><div class="badge sm">📄</div><b>Belge Doldurucu</b></div></header>
+<div class="overlay" id="ov"></div>
+<nav class="drawer" id="drawer" aria-label="Menü"><div class="dh"><div class="badge sm">📄</div>Belge Doldurucu</div></nav>
 <div class="wrap">
-  <div class="brand"><div class="badge">📄</div><div><h1>Belge Doldurucu</h1><p>Şablonu yükle, bilgileri gir, Word olarak indir</p></div></div>
+  <section id="home">
+    <div class="hero"><h1>Hoş geldiniz 👋</h1><p>Word belgelerinizi yükleyin, bilgilerinizi girin, hazır belgeyi saniyeler içinde indirin. Ücretsiz ve gizli.</p></div>
+    <div class="grid" id="hgrid"></div>
+  </section>
+  <section id="tool" class="hide">
+    <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
 
   <div class="card" id="s1">
     <div class="step"><div class="num">1</div><h2>Word şablonunu yükle</h2></div>
@@ -70,7 +98,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <div class="ic">📤</div><b>.docx dosyanı buraya bırak veya dokun</b><span>Sadece Word (.docx) dosyaları</span>
     </label>
     <input type="file" id="fi" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-    <p class="hint">Şablonda doldurulacak yerleri çift süslü parantezle yaz: <code>{{AD_SOYAD}}</code> <code>{{OKUL_ADI}}</code> <code>{{SINIF}}</code>. Sayfa bunları otomatik bulur ve her biri için bir kutu açar. Yazı biçimi (kalın, renk, font) korunur.</p>
+    <p class="hint">Şablonda doldurulacak yerleri çift süslü parantezle yaz: <span id="codes"></span>. Sayfa bunları otomatik bulur ve her biri için bir kutu açar. Yazı biçimi (kalın, renk, font) korunur.</p>
     <div class="row"><button class="btn ghost" id="sample">Örnek şablon indir</button></div>
     <div class="msg err hide" id="err"></div>
   </div>
@@ -83,6 +111,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div class="msg ok hide" id="ok"></div>
   </div>
 
+  </section>
   <footer>🔒 Belgeniz hiçbir yere gönderilmez; tüm işlem tarayıcınızda yapılır.<br>Girdiğiniz bilgiler yalnızca bu cihazda hatırlanır.</footer>
 </div>
 
@@ -163,7 +192,8 @@ const dz=$('drop');
 ['dragenter','dragover'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.add('over')}));
 ['dragleave','drop'].forEach(v=>dz.addEventListener(v,e=>{e.preventDefault();dz.classList.remove('over')}));
 dz.addEventListener('drop',e=>{if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])});
-$('reset').onclick=()=>{zip=null;$('s2').classList.add('hide');$('s1').classList.remove('hide')};
+function resetTool(){zip=null;showErr('');$('ok').classList.add('hide');$('s2').classList.add('hide');$('s1').classList.remove('hide')}
+$('reset').onclick=resetTool;
 $('go').onclick=async()=>{
   const b=$('go');b.disabled=true;b.textContent='Hazırlanıyor…';
   try{save(await build(),fileName+'_dolu.docx');$('ok').textContent='✅ Belge hazırlandı ve indirildi.';$('ok').classList.remove('hide')}
@@ -175,9 +205,32 @@ $('sample').onclick=async()=>{
   const z=new JSZip(),P=t=>'<w:p><w:r><w:t xml:space="preserve">'+t+'</w:t></w:r></w:p>';
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-  z.file('word/document.xml','<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="'+W+'"><w:body>'+P('GÜNLÜK PLAN')+P('Okul: {{OKUL_ADI}}')+P('Öğretmen: {{AD_SOYAD}}')+P('Sınıf: {{SINIF}}')+P('Tarih: {{TARIH}}')+'</w:body></w:document>');
-  save(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'}),'ornek_sablon.docx');
+  z.file('word/document.xml','<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="'+W+'"><w:body>'+SEC[cur].sample.map(x=>P(x)).join('')+'</w:body></w:document>');
+  save(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'}),'ornek_'+cur+'.docx');
 };
+
+const SEC={
+ 'gunluk-plan':{t:'Günlük Plan',i:'📅',d:'Günlük plan Word dosyanızı yükleyin, bilgileri girin, hazır planı indirin.',codes:['AD_SOYAD','OKUL_ADI','SINIF','TARIH'],sample:['GÜNLÜK PLAN','Okul: {{OKUL_ADI}}','Öğretmen: {{AD_SOYAD}}','Sınıf: {{SINIF}}','Tarih: {{TARIH}}']},
+ 'yillik-plan':{t:'Yıllık Plan',i:'🗓️',d:'Yıllık plan Word dosyanızı yükleyin, bilgileri girin, hazır planı indirin.',codes:['AD_SOYAD','OKUL_ADI','DERS','EGITIM_YILI'],sample:['YILLIK PLAN','Okul: {{OKUL_ADI}}','Öğretmen: {{AD_SOYAD}}','Ders: {{DERS}}','Eğitim Öğretim Yılı: {{EGITIM_YILI}}']},
+ 'bep-plan':{t:'BEP Planı',i:'🧩',d:'BEP Word dosyanızı yükleyin, öğrenci ve okul bilgilerini girin, hazır planı indirin.',codes:['OGRENCI_ADI','SINIF','OKUL_ADI','AD_SOYAD'],sample:['BİREYSELLEŞTİRİLMİŞ EĞİTİM PLANI','Okul: {{OKUL_ADI}}','Öğrenci: {{OGRENCI_ADI}}','Sınıf: {{SINIF}}','Öğretmen: {{AD_SOYAD}}']},
+ 'sinav-olustur':{t:'Sınav Oluştur',i:'📝',d:'Sınav kâğıdı Word şablonunuzu yükleyin, bilgileri girin, hazır sınavı indirin.',codes:['OKUL_ADI','DERS','SINIF','AD_SOYAD'],sample:['SINAV KÂĞIDI','Okul: {{OKUL_ADI}}','Ders: {{DERS}}','Sınıf: {{SINIF}}','Öğretmen: {{AD_SOYAD}}']}
+};
+let cur='gunluk-plan';
+const nav=$('drawer');
+nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).map(([k,v])=>'<a href="#'+k+'" data-id="'+k+'"><span>'+v.i+'</span>'+v.t+'</a>').join(''));
+$('hgrid').innerHTML=Object.entries(SEC).map(([k,v])=>'<a class="hcard" href="#'+k+'"><div class="e">'+v.i+'</div><b>'+v.t+'</b><span>'+v.d.split(',')[0]+'</span></a>').join('');
+const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
+$('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
+$('ov').onclick=()=>menu(false);
+addEventListener('keydown',e=>{if(e.key==='Escape')menu(false)});
+function route(){
+  const id=location.hash.slice(1),sec=SEC[id];
+  $('home').classList.toggle('hide',!!sec);$('tool').classList.toggle('hide',!sec);
+  nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===(sec?id:'home')));
+  if(sec){cur=id;$('ptitle').textContent=sec.i+' '+sec.t;$('pdesc').textContent=sec.d;$('codes').innerHTML=sec.codes.map(c=>'<code>{{'+c+'}}</code>').join(' ');resetTool()}
+  menu(false);window.scrollTo(0,0);
+}
+addEventListener('hashchange',route);route();
 </script>
 </body>
 </html>
