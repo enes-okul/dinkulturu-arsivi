@@ -109,7 +109,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-      <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>).</p>
+      <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
       <p class="hint" id="afound"></p>
       <div class="field" style="margin-top:12px"><label id="pwlabel">Yükleme şifresi</label><input type="password" id="apw" autocomplete="off"></div>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
@@ -127,9 +127,9 @@ const XNS='http://www.w3.org/XML/1998/namespace';
 const RE=/\{\{\s*([^{}]+?)\s*\}\}/g;
 const PART=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
 const $=id=>document.getElementById(id);
-const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenci adı',TARIH:'Tarih'};
+const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenci adı',MUDUR_ADI:'Müdür adı',TARIH:'Tarih'};
 const SEC={
- 'gunluk-plan':{t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
+ 'gunluk-plan':{t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
  'sinav-olustur':{t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
@@ -167,7 +167,7 @@ function keysOf(o=srcs){
   for(const s of Object.values(o)){
     for(const p of parse(s).getElementsByTagNameNS(W,'p')){
       const t=tNodes(p).map(x=>x.textContent).join('');
-      for(const m of t.matchAll(RE)){const k=m[1].trim();if(!out.includes(k))out.push(k)}
+      for(const m of t.matchAll(RE)){const k=m[1].trim().replace(/_BUYUK$/,'');if(!out.includes(k))out.push(k)}
     }
   }
   return out;
@@ -193,11 +193,12 @@ async function build(vals){
       const off=[];let c=0;strs.forEach(x=>{off.push(c);c+=x.length});
       const at=pos=>{let i=0;while(i+1<off.length&&off[i+1]<=pos)i++;return i};
       for(const m of ms.reverse()){
-        const key=m[1].trim();if(!(key in vals))continue;
+        const raw=m[1].trim(),key=raw.replace(/_BUYUK$/,'');if(!(key in vals))continue;
+        const val=raw!==key?vals[key].toLocaleUpperCase('tr'):vals[key];
         const st=m.index,en=st+m[0].length,i=at(st),j=at(en-1);
         const a=strs[i].slice(0,st-off[i]),b=strs[j].slice(en-off[j]);
         for(let k=i+1;k<j;k++)strs[k]='';
-        if(i===j)strs[i]=a+vals[key]+b;else{strs[i]=a+vals[key];strs[j]=b}
+        if(i===j)strs[i]=a+val+b;else{strs[i]=a+val;strs[j]=b}
       }
       nodes.forEach((t,k)=>{t.textContent=strs[k];t.setAttributeNS(XNS,'xml:space','preserve')});
     }
