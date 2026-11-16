@@ -95,6 +95,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
   </section>
   <section id="tool" class="hide">
     <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
+    <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div></div>
 
   <div class="card" id="fcard">
     <div id="fields"></div>
@@ -107,6 +108,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div class="phead"><h1>📤 Dosya Yükle</h1><p>Word şablonlarını buradan yükleyin. Kullanıcılar bilgilerini girip hazır belgeyi indirir.</p></div>
     <div class="card">
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
+      <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
@@ -129,7 +131,7 @@ const PART=/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/;
 const $=id=>document.getElementById(id);
 const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenci adı',MUDUR_ADI:'Müdür adı',TARIH:'Tarih'};
 const SEC={
- 'gunluk-plan':{t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
+ 'gunluk-plan':{k:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
  'sinav-olustur':{t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
@@ -177,18 +179,22 @@ function pruneToWeek(doc,no){
   const rest=[...body.children].filter(e=>e.localName!=='sectPr'),last=rest[rest.length-1];
   if(last&&last.localName==='p'&&pText(last)===''&&last.getElementsByTagNameNS(W,'br').length)body.removeChild(last);
 }
+const KAD=[4,5,6,7,8,9,10,11,12];
+const gradeOpts=()=>KAD.map(n=>'<option value="'+n+'">'+n+'. Sınıf</option>').join('');
+const tid=(id,g)=>SEC[id]&&SEC[id].k?id+'-'+g:id;
+const tname=(id,g)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'');
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
 async function partsOf(z){
   const o={};
   for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
   return o['word/document.xml']?o:null;
 }
-async function loadTemplate(id){
+async function loadTemplate(id,legacy){
   weeks=[];
   try{
-    const r=await fetch(DB+'/'+id+'/dosya.json');
-    if(!r.ok)return false;
-    const b64=await r.json();
+    let r=await fetch(DB+'/'+id+'/dosya.json');
+    let b64=r.ok?await r.json():null;
+    if(!b64&&legacy){r=await fetch(DB+'/'+legacy+'/dosya.json');b64=r.ok?await r.json():null}
     if(!b64)return false;
     const z=await JSZip.loadAsync(b64,{base64:true});
     const o=await partsOf(z);
@@ -262,7 +268,7 @@ $('go').onclick=async()=>{
     const vals={};
     document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
     const wk=$('wk')?+$('wk').value:0;
-    save(await build(vals,wk),cur+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
+    save(await build(vals,wk),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.');
   }catch(e){msg('err','Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
@@ -283,10 +289,19 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('belge:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 $('asel').innerHTML=Object.entries(SEC).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
 async function status(){
-  const rows=await Promise.all(Object.entries(SEC).map(async([k,v])=>{
+  const items=[];
+  Object.entries(SEC).forEach(([k,v])=>{
+    if(v.k)KAD.forEach(g=>items.push({id:tid(k,g),legacy:g===6?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf'}));
+    else items.push({id:k,legacy:null,t:v.i+' '+v.t});
+  });
+  const rows=await Promise.all(items.map(async it=>{
     let t='—';
-    try{const r=await fetch(DB+'/'+k+'/meta.json');const m=r.ok?await r.json():null;if(m&&m.ad)t='✅ '+esc(m.ad)}catch(e){t='?'}
-    return '<div class="srow"><span>'+v.i+' '+v.t+'</span><b>'+t+'</b></div>';
+    try{
+      let r=await fetch(DB+'/'+it.id+'/meta.json'),m=r.ok?await r.json():null;
+      if(!(m&&m.ad)&&it.legacy){r=await fetch(DB+'/'+it.legacy+'/meta.json');m=r.ok?await r.json():null}
+      if(m&&m.ad)t='✅ '+esc(m.ad);
+    }catch(e){t='?'}
+    return '<div class="srow"><span>'+it.t+'</span><b>'+t+'</b></div>';
   }));
   $('astat').innerHTML=rows.join('');
 }
@@ -320,7 +335,7 @@ $('aup').onclick=async()=>{
     const h=await sha(pw);
     if(adminHash&&h!==adminHash)throw new Error('Şifre yanlış.');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
-    const id=$('asel').value;
+    const sid=$('asel').value,gg=$('aksel').value,id=tid(sid,gg);
     if(!adminHash){
       const r0=await fetch(DB+'/_yonetici/hash.json',{method:'PUT',body:JSON.stringify(h)});
       if(!r0.ok)throw new Error('izin');
@@ -328,18 +343,25 @@ $('aup').onclick=async()=>{
     }
     const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta:{ad:aFile.name,tarih:Date.now()},dosya:b64})});
     if(!r.ok)throw new Error('izin');
-    msg('aok','✅ '+SEC[id].t+' şablonu yüklendi.');status();
+    msg('aok','✅ '+tname(sid,gg)+' şablonu yüklendi.');status();
   }catch(e){
     msg('aerr',e.message==='izin'?'Yükleme izni verilmedi. Firebase veritabanı kuralları bu alana yazmaya izin vermiyor olabilir.':(e.message&&e.message.length<60?e.message:'Yükleme başarısız. İnternet bağlantınızı kontrol edip tekrar deneyin.'));
   }
   btn.disabled=false;btn.textContent='Yükle';
 };
+$('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
+{const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
+$('asel').onchange=()=>$('akwrap').classList.toggle('hide',!SEC[$('asel').value].k);
+$('asel').onchange();
+$('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);openSec(cur,SEC[cur])};
 async function openSec(id,sec){
   const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
+  $('kwrap').classList.toggle('hide',!sec.k);
+  const g=sec.k?+$('ksel').value:0;
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
-  const ok=await loadTemplate(id);
+  const ok=await loadTemplate(tid(id,g),sec.k&&g===6?id:null);
   if(my!==seq)return;
-  if(!ok){$('fields').innerHTML='';msg('err','Bu bölümün şablonu henüz yüklenmedi.');return}
+  if(!ok){$('fields').innerHTML='';msg('err',sec.k?g+'. sınıf için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
   renderForm(sec);$('go').disabled=false;
 }
 function route(){
