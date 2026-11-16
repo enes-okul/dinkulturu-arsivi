@@ -149,9 +149,10 @@ const msg=(id,t)=>{const e=$(id);e.textContent=t;e.classList.toggle('hide',!t)};
 
 const AY={'ocak':0,'şubat':1,'mart':2,'nisan':3,'mayıs':4,'haziran':5,'temmuz':6,'ağustos':7,'eylül':8,'ekim':9,'kasım':10,'aralık':11};
 const WK=/(\d+)\.\s*HAFTA\s*\(([^)]*)\)/;
+const SY=(()=>{const n=new Date();return n.getMonth()>=7?n.getFullYear():n.getFullYear()-1})();
 function parseRange(r){
   const p=r.split(/\s*[-–—]\s*/),a=p[0].trim().split(/\s+/),b=p[p.length-1].trim().split(/\s+/);
-  const mk=(d,m,y)=>{const mi=AY[String(m||'').toLocaleLowerCase('tr')];if(mi===undefined)return null;const dt=new Date(+y,mi,+d);return isNaN(dt)?null:dt};
+  const mk=(d,m,y)=>{const mi=AY[String(m||'').toLocaleLowerCase('tr')];if(mi===undefined)return null;const dt=new Date(y?+y:SY+(mi>=8?0:1),mi,+d);return isNaN(dt)?null:dt};
   return {start:mk(a[0],a[1]||b[1],a[2]||b[2]),end:mk(b[0],b[1]||a[1],b[2]||a[2])};
 }
 const bodyOf=doc=>doc.getElementsByTagNameNS(W,'body')[0];
@@ -161,7 +162,7 @@ function weekHeads(body){
   [...body.children].forEach((e,i)=>{
     if(e.localName!=='p')return;
     const t=pText(e),m=t.match(WK);
-    if(m&&/PLANI/i.test(t))out.push({i,no:+m[1],range:m[2].trim()});
+    if(m&&(/PLANI/i.test(t)||/^\s*\d+\.\s*HAFTA/i.test(t)))out.push({i,no:+m[1],range:m[2].trim()});
   });
   return out;
 }
@@ -176,6 +177,8 @@ function pruneToWeek(doc,no){
   const k=hs.findIndex(h=>h.no===no);if(k<0)return;
   const start=hs[k].i-2,end=k+1<hs.length?hs[k+1].i-2:kids.length-1;
   kids.forEach((e,i)=>{if(e.localName!=='sectPr'&&(i<start||i>=end))body.removeChild(e)});
+  const first=[...body.children].find(e=>e.localName==='p');
+  if(first){const pb=first.getElementsByTagNameNS(W,'pageBreakBefore')[0];if(pb)pb.parentNode.removeChild(pb)}
   const rest=[...body.children].filter(e=>e.localName!=='sectPr'),last=rest[rest.length-1];
   if(last&&last.localName==='p'&&pText(last)===''&&last.getElementsByTagNameNS(W,'br').length)body.removeChild(last);
 }
