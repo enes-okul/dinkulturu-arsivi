@@ -137,13 +137,46 @@ const SEC={
 const REMEMBER=['OKUL_ADI','AD_SOYAD'];
 const label=k=>LAB[k]||k.replace(/_/g,' ').toLocaleLowerCase('tr').replace(/(^|\s)\S/g,m=>m.toLocaleUpperCase('tr'));
 const store={get(k){try{return localStorage.getItem('bd_'+k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem('bd_'+k,v)}catch(e){}}};
-let zip=null,srcs={},seq=0,cur='';
+let zip=null,srcs={},seq=0,cur='',weeks=[];
 
 const ownerP=n=>{while(n&&!(n.localName==='p'&&n.namespaceURI===W))n=n.parentNode;return n};
 const tNodes=p=>[...p.getElementsByTagNameNS(W,'t')].filter(t=>ownerP(t.parentNode)===p);
 const parse=s=>{const d=new DOMParser().parseFromString(s,'application/xml');if(d.getElementsByTagName('parsererror').length)throw new Error('xml');return d};
 const msg=(id,t)=>{const e=$(id);e.textContent=t;e.classList.toggle('hide',!t)};
 
+
+const AY={'ocak':0,'şubat':1,'mart':2,'nisan':3,'mayıs':4,'haziran':5,'temmuz':6,'ağustos':7,'eylül':8,'ekim':9,'kasım':10,'aralık':11};
+const WK=/(\d+)\.\s*HAFTA\s*\(([^)]*)\)/;
+function parseRange(r){
+  const p=r.split(/\s*[-–—]\s*/),a=p[0].trim().split(/\s+/),b=p[p.length-1].trim().split(/\s+/);
+  const mk=(d,m,y)=>{const mi=AY[String(m||'').toLocaleLowerCase('tr')];if(mi===undefined)return null;const dt=new Date(+y,mi,+d);return isNaN(dt)?null:dt};
+  return {start:mk(a[0],a[1]||b[1],a[2]||b[2]),end:mk(b[0],b[1]||a[1],b[2]||a[2])};
+}
+const bodyOf=doc=>doc.getElementsByTagNameNS(W,'body')[0];
+const pText=e=>[...e.getElementsByTagNameNS(W,'t')].map(x=>x.textContent).join('');
+function weekHeads(body){
+  const out=[];
+  [...body.children].forEach((e,i)=>{
+    if(e.localName!=='p')return;
+    const t=pText(e),m=t.match(WK);
+    if(m&&/PLANI/i.test(t))out.push({i,no:+m[1],range:m[2].trim()});
+  });
+  return out;
+}
+function detectWeeks(xml){
+  try{
+    const hs=weekHeads(bodyOf(parse(xml)));
+    return hs.length>=2?hs.map(h=>({no:h.no,range:h.range,...parseRange(h.range)})):[];
+  }catch(e){return []}
+}
+function pruneToWeek(doc,no){
+  const body=bodyOf(doc),kids=[...body.children],hs=weekHeads(body);
+  const k=hs.findIndex(h=>h.no===no);if(k<0)return;
+  const start=hs[k].i-2,end=k+1<hs.length?hs[k+1].i-2:kids.length-1;
+  kids.forEach((e,i)=>{if(e.localName!=='sectPr'&&(i<start||i>=end))body.removeChild(e)});
+  const rest=[...body.children].filter(e=>e.localName!=='sectPr'),last=rest[rest.length-1];
+  if(last&&last.localName==='p'&&pText(last)===''&&last.getElementsByTagNameNS(W,'br').length)body.removeChild(last);
+}
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
 async function partsOf(z){
   const o={};
@@ -151,6 +184,7 @@ async function partsOf(z){
   return o['word/document.xml']?o:null;
 }
 async function loadTemplate(id){
+  weeks=[];
   try{
     const r=await fetch(DB+'/'+id+'/dosya.json');
     if(!r.ok)return false;
@@ -159,7 +193,7 @@ async function loadTemplate(id){
     const z=await JSZip.loadAsync(b64,{base64:true});
     const o=await partsOf(z);
     if(!o)return false;
-    zip=z;srcs=o;return true;
+    zip=z;srcs=o;weeks=detectWeeks(o['word/document.xml']);return true;
   }catch(e){return false}
 }
 function keysOf(o=srcs){
@@ -175,18 +209,32 @@ function keysOf(o=srcs){
 function renderForm(sec){
   const list=sec.f.concat(keysOf().filter(k=>!sec.f.includes(k)));
   const box=$('fields');box.innerHTML='';
+  const today=new Date();
+  let sel=null;
+  if(weeks.length){
+    const d=document.createElement('div');d.className='field';
+    const l=document.createElement('label');l.textContent='Hafta';
+    sel=document.createElement('select');sel.id='wk';
+    weeks.forEach(w=>{const o=document.createElement('option');o.value=w.no;o.textContent=w.no+'. Hafta ('+w.range+')';sel.appendChild(o)});
+    let pick=weeks.findIndex(w=>w.end&&w.end>=today);if(pick<0)pick=weeks.length-1;
+    sel.selectedIndex=pick;
+    d.append(l,sel);box.appendChild(d);
+  }
+  const wDate=()=>{const w=weeks[sel.selectedIndex];return(w&&w.start?w.start:today).toLocaleDateString('tr-TR')};
   list.forEach(k=>{
     const d=document.createElement('div');d.className='field';
     const l=document.createElement('label');l.textContent=label(k);
     const i=document.createElement('input');i.type='text';i.dataset.key=k;i.autocomplete='off';
-    i.value=k==='TARIH'?new Date().toLocaleDateString('tr-TR'):(REMEMBER.includes(k)?store.get(k):'');
+    i.value=k==='TARIH'?(sel?wDate():today.toLocaleDateString('tr-TR')):(REMEMBER.includes(k)?store.get(k):'');
+    if(k==='TARIH'&&sel){i.oninput=()=>{i.dataset.touched='1'};sel.onchange=()=>{if(!i.dataset.touched)i.value=wDate()}}
     d.append(l,i);box.appendChild(d);
   });
 }
-async function build(vals){
+async function build(vals,wk){
   const out=await JSZip.loadAsync(await zip.generateAsync({type:'uint8array'}));
   for(const [n,s] of Object.entries(srcs)){
     const doc=parse(s);
+    if(wk&&n==='word/document.xml')pruneToWeek(doc,wk);
     for(const p of doc.getElementsByTagNameNS(W,'p')){
       const nodes=tNodes(p),strs=nodes.map(t=>t.textContent),full=strs.join('');
       const ms=[...full.matchAll(RE)];if(!ms.length)continue;
@@ -213,7 +261,8 @@ $('go').onclick=async()=>{
   try{
     const vals={};
     document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
-    save(await build(vals),cur+'_hazir.docx');
+    const wk=$('wk')?+$('wk').value:0;
+    save(await build(vals,wk),cur+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.');
   }catch(e){msg('err','Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
