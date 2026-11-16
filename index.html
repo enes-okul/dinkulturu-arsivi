@@ -157,25 +157,36 @@ function parseRange(r){
 }
 const bodyOf=doc=>doc.getElementsByTagNameNS(W,'body')[0];
 const pText=e=>[...e.getElementsByTagNameNS(W,'t')].map(x=>x.textContent).join('');
+function parseHead(t){
+  const m=t.match(/(\d+)\s*\.\s*HAFTA\s*(?:\(([^)]*)\))?/i)||t.match(/HAFTA\s*[:\-–—]?\s*(\d+)\s*(?:\(([^)]*)\))?/i);
+  if(!m||!(/PLANI/i.test(t)||/^\s*(\d+\s*\.\s*)?HAFTA/i.test(t)))return null;
+  return {no:+m[1],range:(m[2]||'').trim()};
+}
+const isBreakP=e=>e.localName==='p'&&pText(e).trim()===''&&[...e.getElementsByTagNameNS(W,'br')].some(b=>b.getAttributeNS(W,'type')==='page');
+const hasPBB=e=>e.localName==='p'&&[...e.getElementsByTagNameNS(W,'pageBreakBefore')].some(x=>!['0','false','off'].includes(x.getAttributeNS(W,'val')||'1'));
+function blockStart(kids,i){
+  for(let j=i;j>=Math.max(0,i-5);j--){if(hasPBB(kids[j])||(j>0&&isBreakP(kids[j-1])))return j}
+  return Math.max(0,i-2);
+}
 function weekHeads(body){
-  const out=[];
-  [...body.children].forEach((e,i)=>{
+  const kids=[...body.children],out=[];
+  kids.forEach((e,i)=>{
     if(e.localName!=='p')return;
-    const t=pText(e),m=t.match(WK);
-    if(m&&(/PLANI/i.test(t)||/^\s*\d+\.\s*HAFTA/i.test(t)))out.push({i,no:+m[1],range:m[2].trim()});
+    const h=parseHead(pText(e));
+    if(h&&!out.some(o=>o.no===h.no))out.push({i,start:blockStart(kids,i),...h});
   });
   return out;
 }
 function detectWeeks(xml){
   try{
     const hs=weekHeads(bodyOf(parse(xml)));
-    return hs.length>=2?hs.map(h=>({no:h.no,range:h.range,...parseRange(h.range)})):[];
+    return hs.length>=2?hs.map(h=>({no:h.no,range:h.range,...(h.range?parseRange(h.range):{start:null,end:null})})):[];
   }catch(e){return []}
 }
 function pruneToWeek(doc,no){
   const body=bodyOf(doc),kids=[...body.children],hs=weekHeads(body);
   const k=hs.findIndex(h=>h.no===no);if(k<0)return;
-  const start=hs[k].i-2,end=k+1<hs.length?hs[k+1].i-2:kids.length-1;
+  const start=hs[k].start,end=k+1<hs.length?hs[k+1].start:kids.length-1;
   kids.forEach((e,i)=>{if(e.localName!=='sectPr'&&(i<start||i>=end))body.removeChild(e)});
   const first=[...body.children].find(e=>e.localName==='p');
   if(first){const pb=first.getElementsByTagNameNS(W,'pageBreakBefore')[0];if(pb)pb.parentNode.removeChild(pb)}
@@ -224,8 +235,8 @@ function renderForm(sec){
     const d=document.createElement('div');d.className='field';
     const l=document.createElement('label');l.textContent='Hafta';
     sel=document.createElement('select');sel.id='wk';
-    weeks.forEach(w=>{const o=document.createElement('option');o.value=w.no;o.textContent=w.no+'. Hafta ('+w.range+')';sel.appendChild(o)});
-    let pick=weeks.findIndex(w=>w.end&&w.end>=today);if(pick<0)pick=weeks.length-1;
+    weeks.forEach(w=>{const o=document.createElement('option');o.value=w.no;o.textContent=w.no+'. Hafta'+(w.range?' ('+w.range+')':'');sel.appendChild(o)});
+    let pick=weeks.some(w=>w.end)?weeks.findIndex(w=>w.end&&w.end>=today):0;if(pick<0)pick=weeks.length-1;
     sel.selectedIndex=pick;
     d.append(l,sel);box.appendChild(d);
   }
@@ -327,6 +338,7 @@ $('afile').onchange=async e=>{
     const ks=keysOf(o);
     if(!ks.length){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
     $('afound').textContent='Bulunan alanlar: '+ks.map(label).join(', ');
+    if(SEC[$('asel').value].k){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
     aFile=f;$('aup').disabled=false;
   }catch(err){msg('aerr','Dosya okunamadı; geçerli bir .docx olduğundan emin olun.')}
 };
