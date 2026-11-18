@@ -78,6 +78,12 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .hcard .e{font-size:1.8rem}.hcard b{display:block;margin:8px 0 3px;font-family:'Space Grotesk',sans-serif}
 .hcard span{color:var(--muted);font-size:.8rem;font-weight:600;line-height:1.4}
 .phead{margin-bottom:14px}.phead h1{font-size:1.4rem}.phead p{color:var(--muted);margin:6px 0 0;font-size:.9rem;font-weight:600}
+.field textarea{width:100%;font-family:inherit;font-size:1rem;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;outline:none;background:#fff;resize:vertical;line-height:1.5}
+.field textarea:focus{border-color:var(--violet)}
+.chk{display:flex;align-items:flex-start;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line);font-weight:600;font-size:.92rem;line-height:1.4;cursor:pointer}
+.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--violet);flex-shrink:0}
+.khead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.khead h2{margin:0}
 .field select{width:100%;font-family:inherit;font-size:1rem;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;background:#fff}
 .srow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.88rem;font-weight:600}
 .del{font-family:inherit;font-weight:800;font-size:.78rem;border:none;border-radius:8px;padding:4px 10px;margin-left:8px;cursor:pointer;background:#FFE9E6;color:#B3261E}.del:hover{background:#FFD3CD}.del:disabled{opacity:.5}
@@ -116,6 +122,8 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
     <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div><div class="field hide" id="dwrap" style="margin:12px 0 0"><label>Ders</label><select id="dsel"></select></div><div class="field hide" id="swrap" style="margin:12px 0 0"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="dnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="snsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div></div>
 
+  <div class="card hide" id="kcard"><div class="khead"><h2>📚 Konular</h2><button class="btn ghost" id="kall" type="button" style="padding:7px 12px;font-size:.8rem">Tümünü seç</button></div><p class="hint" style="margin:0 0 4px">Sınavda yer alacak konuları işaretleyin (birden fazla seçebilirsiniz).</p><div id="klist"></div></div>
+
   <div class="card" id="fcard">
     <div id="fields"></div>
     <div class="row"><button class="btn" id="go" disabled>⬇ Word olarak indir</button></div>
@@ -139,10 +147,21 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
+      <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
       <p class="hint" id="afound"></p>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
       <div class="msg err hide" id="aerr"></div>
       <div class="msg ok hide" id="aok"></div>
+    </div>
+    <div class="card">
+      <h2>📚 Konular (ünite başlıkları)</h2>
+      <p class="hint" style="margin:0 0 12px">Seçtiğiniz sınıf ve dersin konularını buraya yazın; sınav oluştururken ve indirirken bu konulardan birden fazlası seçilebilir.</p>
+      <div class="field"><label>Sınıf</label><select id="kgsel"></select></div>
+      <div class="field"><label>Ders</label><select id="kdsel"></select></div>
+      <div class="field"><label>Konular <small>her satıra bir konu</small></label><textarea id="ktxt" rows="9" placeholder="1. Ünite: Allah İnancı&#10;2. Ünite: Namaz&#10;..."></textarea></div>
+      <div class="row"><button class="btn" id="ksave">Konuları kaydet</button></div>
+      <div class="msg err hide" id="kerr"></div>
+      <div class="msg ok hide" id="kok"></div>
     </div>
     <div class="card"><h2>Yüklü şablonlar</h2><div id="astat"></div></div>
     </div>
@@ -227,6 +246,19 @@ const dersIds=g=>g>=9?['dkab','tdb1','tdb2','kuran','siyer','arapca']:g>=5?['dka
 const dersOpts=g=>dersIds(g).map(d=>'<option value="'+d+'">'+DERS[d]+'</option>').join('');
 const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
 const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'')+(SEC[id].sn?' — '+(dn||1)+'. Dönem '+(sn||1)+'. Sınav':'');
+const KDB=DB+'/_konular';
+const AUTO=['DONEM','SINAV','KONULAR','SINIF','DERS'];
+const kkey=(g,d)=>g+(d&&d!=='dkab'?'-'+d:'');
+async function loadTopics(g,d){
+  try{const r=await fetch(KDB+'/'+kkey(g,d)+'.json');const a=r.ok?await r.json():null;
+    return (Array.isArray(a)?a:(a&&typeof a==='object'?Object.values(a):[])).filter(x=>typeof x==='string'&&x.trim())}catch(e){return []}
+}
+function renderTopics(list){
+  const box=$('klist');box.innerHTML='';$('kall').classList.toggle('hide',!list.length);
+  if(!list.length){box.innerHTML='<p class="hint">Bu sınıf ve ders için konu eklenmemiş. Yönetici, Dosya Yükle ekranından konuları ekleyebilir.</p>';return}
+  list.forEach(t=>{const l=document.createElement('label');l.className='chk';const i=document.createElement('input');i.type='checkbox';i.value=t;l.append(i,document.createTextNode(t));box.appendChild(l)});
+  $('kall').textContent='Tümünü seç';
+}
 const SNV=/^(.+?)-(\d+)(?:-([a-z0-9]+))?-d(\d)-s(\d)$/;
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
 async function partsOf(z){
@@ -258,7 +290,7 @@ function keysOf(o=srcs){
   return out;
 }
 function renderForm(sec){
-  const list=sec.f.concat(keysOf().filter(k=>!sec.f.includes(k)));
+  const list=sec.f.concat(keysOf().filter(k=>!sec.f.includes(k)&&!(sec.sn&&AUTO.includes(k))));
   const box=$('fields');box.innerHTML='';
   const today=new Date();
   let sel=null;
@@ -312,10 +344,15 @@ $('go').onclick=async()=>{
   try{
     const vals={};
     document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
+    if(SEC[cur].sn){
+      const all=[...document.querySelectorAll('#klist input')],sel=all.filter(i=>i.checked).map(i=>i.value);
+      if(all.length&&!sel.length)throw new Error('Lütfen en az bir konu seçin.');
+      vals.KONULAR=sel.join(', ');vals.DONEM=$('dnsel').value;vals.SINAV=$('snsel').value;vals.SINIF=$('ksel').value;vals.DERS=DERS[$('dsel').value]||'';
+    }
     const wk=$('wk')?+$('wk').value:0;
     save(await build(vals,wk),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(SEC[cur].sn?'_'+$('dnsel').value+'-donem_'+$('snsel').value+'-sinav':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.');
-  }catch(e){msg('err','Belge hazırlanırken bir hata oluştu.')}
+  }catch(e){msg('err',e.message&&e.message.indexOf('konu')>0?e.message:'Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
 };
 
@@ -368,7 +405,7 @@ async function status(){
 async function openAdmin(){
   msg('aerr','');msg('aok','');msg('gerr','');
   $('apanel').classList.toggle('hide',!authHash);$('agate').classList.toggle('hide',!!authHash);
-  if(authHash){status();return}
+  if(authHash){status();loadAdminTopics();return}
   $('gbtn').disabled=true;adminHash=undefined;
   try{const r=await fetch(DB+'/_yonetici/hash.json');if(r.ok)adminHash=await r.json()}catch(e){}
   if(adminHash===undefined){msg('gerr','Bağlantı kurulamadı. İnternetinizi kontrol edip sayfayı yenileyin.');return}
@@ -438,7 +475,7 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn)};
+$('asel').onchange=()=>{const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn)};
 $('asel').onchange();
 $('aksel').onchange=()=>fillDers($('adsel'),$('aksel').value,$('adsel').value);
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
@@ -446,10 +483,35 @@ $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])}
 {const m=new Date().getMonth();const sv=store.get('DONEM');$('dnsel').value=sv==='1'||sv==='2'?sv:(m>=8||m===0?'1':'2')}
 $('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
 $('snsel').onchange=()=>openSec(cur,SEC[cur]);
+$('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input')],on=all.some(i=>!i.checked);all.forEach(i=>i.checked=on);$('kall').textContent=on?'Seçimi temizle':'Tümünü seç'};
+$('kgsel').innerHTML=gradeOpts();$('kgsel').value=$('aksel').value;fillDers($('kdsel'),$('kgsel').value,$('adsel').value);
+async function loadAdminTopics(){
+  msg('kerr','');msg('kok','');$('ktxt').value='';$('ktxt').disabled=true;
+  const l=await loadTopics(+$('kgsel').value,$('kdsel').value);
+  $('ktxt').value=l.join('\n');$('ktxt').disabled=false;
+}
+$('kgsel').onchange=()=>{fillDers($('kdsel'),$('kgsel').value,$('kdsel').value);loadAdminTopics()};
+$('kdsel').onchange=loadAdminTopics;
+$('ksave').onclick=async()=>{
+  const b=$('ksave');msg('kerr','');msg('kok','');
+  if(!authHash){msg('kerr','Önce yönetici şifresiyle giriş yapın.');return}
+  const list=[...new Set($('ktxt').value.split('\n').map(x=>x.trim()).filter(Boolean))];
+  b.disabled=true;
+  try{
+    const u=KDB+'/'+kkey(+$('kgsel').value,$('kdsel').value)+'.json';
+    const r=await fetch(u,list.length?{method:'PUT',body:JSON.stringify(list)}:{method:'DELETE'});
+    if(!r.ok)throw 0;
+    $('ktxt').value=list.join('\n');
+    msg('kok','✅ '+$('kgsel').value+'. sınıf '+DERS[$('kdsel').value]+' için '+list.length+' konu kaydedildi.');
+  }catch(e){msg('kerr','Kaydedilemedi. Firebase kuralları bu alana yazmaya izin vermiyor olabilir.')}
+  b.disabled=false;
+};
 async function openSec(id,sec){
   const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
   $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.toggle('hide',!sec.sn);
   const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn=sec.sn?$('dnsel').value:'',sn=sec.sn?$('snsel').value:'';
+  $('kcard').classList.toggle('hide',!sec.sn);
+  if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');loadTopics(g,d).then(l=>{if(my===seq)renderTopics(l)})}
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
   const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
   if(my!==seq)return;
