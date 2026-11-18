@@ -80,6 +80,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .phead{margin-bottom:14px}.phead h1{font-size:1.4rem}.phead p{color:var(--muted);margin:6px 0 0;font-size:.9rem;font-weight:600}
 .field select{width:100%;font-family:inherit;font-size:1rem;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;background:#fff}
 .srow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.88rem;font-weight:600}
+.del{font-family:inherit;font-weight:800;font-size:.78rem;border:none;border-radius:8px;padding:4px 10px;margin-left:8px;cursor:pointer;background:#FFE9E6;color:#B3261E}.del:hover{background:#FFD3CD}.del:disabled{opacity:.5}
 .srow:last-child{border:none}.srow b{font-weight:700;text-align:right;word-break:break-all}
 .card h2{font-size:1rem;margin-bottom:6px}
 
@@ -124,6 +125,12 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
   </section>
   <section id="admin" class="hide">
     <div class="phead"><h1>📤 Dosya Yükle</h1><p>Word şablonlarını buradan yükleyin. Kullanıcılar bilgilerini girip hazır belgeyi indirir.</p></div>
+    <div class="card" id="agate">
+      <div class="field" style="margin:0"><label id="gatelabel">Yönetici şifresi</label><input type="password" id="gpw" autocomplete="off"></div>
+      <div class="row"><button class="btn" id="gbtn">Giriş yap</button></div>
+      <div class="msg err hide" id="gerr"></div>
+    </div>
+    <div id="apanel" class="hide">
     <div class="card">
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
       <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
@@ -132,12 +139,12 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
       <p class="hint" id="afound"></p>
-      <div class="field" style="margin-top:12px"><label id="pwlabel">Yükleme şifresi</label><input type="password" id="apw" autocomplete="off"></div>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
       <div class="msg err hide" id="aerr"></div>
       <div class="msg ok hide" id="aok"></div>
     </div>
     <div class="card"><h2>Yüklü şablonlar</h2><div id="astat"></div></div>
+    </div>
   </section>
   <footer>🔒 Girdiğiniz bilgiler hiçbir yere gönderilmez; belge tarayıcınızda hazırlanır.<br>Okul ve öğretmen adı yalnızca bu cihazda hatırlanır.</footer>
 </div>
@@ -319,7 +326,7 @@ $('ov').onclick=()=>menu(false);
 addEventListener('keydown',e=>{if(e.key==='Escape')menu(false)});
 
 
-let aFile=null,adminHash=null;
+let aFile=null,adminHash=null,authHash=null;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('belge:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 $('asel').innerHTML=Object.entries(SEC).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
@@ -331,22 +338,55 @@ async function status(){
     else items.push({id:k,legacy:null,t:v.i+' '+v.t});
   });
   const rows=await Promise.all(items.map(async it=>{
-    let t='—';
+    let t='—',pid=null;
     try{
       let r=await fetch(DB+'/'+it.id+'/meta.json'),m=r.ok?await r.json():null;
-      if(!(m&&m.ad)&&it.legacy){r=await fetch(DB+'/'+it.legacy+'/meta.json');m=r.ok?await r.json():null}
+      if(m&&m.ad)pid=it.id;
+      if(!(m&&m.ad)&&it.legacy){r=await fetch(DB+'/'+it.legacy+'/meta.json');m=r.ok?await r.json():null;if(m&&m.ad)pid=it.legacy}
       if(m&&m.ad)t='✅ '+esc(m.ad);
     }catch(e){t='?'}
-    return '<div class="srow"><span>'+it.t+'</span><b>'+t+'</b></div>';
+    return '<div class="srow"><span>'+it.t+'</span><b>'+t+(pid?' <button class="del" data-id="'+esc(pid)+'" data-t="'+esc(it.t)+'">Sil</button>':'')+'</b></div>';
   }));
   $('astat').innerHTML=rows.join('');
 }
 async function openAdmin(){
-  msg('aerr','');msg('aok','');
-  try{const r=await fetch(DB+'/_yonetici/hash.json');adminHash=r.ok?await r.json():null}catch(e){adminHash=null}
-  $('pwlabel').textContent=adminHash?'Yükleme şifresi':'Yeni yükleme şifresi belirleyin (ilk kez)';
-  status();
+  msg('aerr','');msg('aok','');msg('gerr','');
+  $('apanel').classList.toggle('hide',!authHash);$('agate').classList.toggle('hide',!!authHash);
+  if(authHash){status();return}
+  $('gbtn').disabled=true;adminHash=undefined;
+  try{const r=await fetch(DB+'/_yonetici/hash.json');if(r.ok)adminHash=await r.json()}catch(e){}
+  if(adminHash===undefined){msg('gerr','Bağlantı kurulamadı. İnternetinizi kontrol edip sayfayı yenileyin.');return}
+  $('gatelabel').textContent=adminHash?'Yönetici şifresi':'Yeni yönetici şifresi belirleyin (ilk kez)';
+  $('gbtn').textContent=adminHash?'Giriş yap':'Şifreyi belirle ve gir';
+  $('gbtn').disabled=false;
 }
+$('gbtn').onclick=async()=>{
+  msg('gerr','');const pw=$('gpw').value,b=$('gbtn');
+  if(pw.length<4){msg('gerr','Şifre en az 4 karakter olmalı.');return}
+  b.disabled=true;
+  try{
+    const h=await sha(pw);
+    if(adminHash){if(h!==adminHash)throw new Error('Şifre yanlış.')}
+    else{
+      const r=await fetch(DB+'/_yonetici/hash.json',{method:'PUT',body:JSON.stringify(h)});
+      if(!r.ok)throw new Error('izin');
+      adminHash=h;
+    }
+    authHash=h;$('gpw').value='';openAdmin();
+  }catch(e){msg('gerr',e.message==='izin'?'Şifre kaydedilemedi. Firebase veritabanı kuralları bu alana yazmaya izin vermiyor olabilir.':(e.message&&e.message.length<60?e.message:'İşlem başarısız. Tekrar deneyin.'));b.disabled=false}
+};
+$('gpw').onkeydown=e=>{if(e.key==='Enter')$('gbtn').click()};
+$('astat').onclick=async e=>{
+  const b=e.target.closest('.del');if(!b||!authHash)return;
+  if(!confirm(b.dataset.t+' şablonu silinsin mi? Bu işlem geri alınamaz.'))return;
+  b.disabled=true;msg('aerr','');msg('aok','');
+  try{
+    const r=await fetch(DB+'/'+b.dataset.id+'.json',{method:'DELETE'});
+    if(!r.ok)throw 0;
+    msg('aok','🗑️ '+b.dataset.t+' şablonu silindi.');
+  }catch(err){msg('aerr','Silinemedi. Firebase kuralları silmeye izin vermiyor olabilir.');b.disabled=false;return}
+  status();
+};
 $('afile').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';
   aFile=null;$('aup').disabled=true;msg('aerr','');msg('aok','');$('afound').textContent='';
@@ -367,17 +407,9 @@ $('afile').onchange=async e=>{
 $('aup').onclick=async()=>{
   const btn=$('aup');btn.disabled=true;btn.textContent='Yükleniyor…';msg('aerr','');msg('aok','');
   try{
-    const pw=$('apw').value;
-    if(pw.length<4)throw new Error('Şifre en az 4 karakter olmalı.');
-    const h=await sha(pw);
-    if(adminHash&&h!==adminHash)throw new Error('Şifre yanlış.');
+    if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
     const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd);
-    if(!adminHash){
-      const r0=await fetch(DB+'/_yonetici/hash.json',{method:'PUT',body:JSON.stringify(h)});
-      if(!r0.ok)throw new Error('izin');
-      adminHash=h;$('pwlabel').textContent='Yükleme şifresi';
-    }
     const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta:{ad:aFile.name,tarih:Date.now()},dosya:b64})});
     if(!r.ok)throw new Error('izin');
     msg('aok','✅ '+tname(sid,gg,dd)+' şablonu yüklendi.');status();
@@ -410,6 +442,7 @@ function route(){
   const adm=id==='dosya-yukle';
   $('home').classList.toggle('hide',!!sec||adm);$('tool').classList.toggle('hide',!sec);$('admin').classList.toggle('hide',!adm);
   nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===((sec||adm)?id:'home')));
+  if(!adm){authHash=null;$('astat').innerHTML='';$('apanel').classList.add('hide');$('agate').classList.remove('hide')}
   if(adm)openAdmin();
   if(sec){cur=id;$('ptitle').textContent=sec.i+' '+sec.t;$('pdesc').textContent=sec.d;openSec(id,sec)}
   menu(false);window.scrollTo(0,0);
