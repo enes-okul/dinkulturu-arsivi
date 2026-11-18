@@ -147,6 +147,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
+      <div class="field hide" id="aktwrap"><label>Hangi konulardan soru var? <small>birden fazla seçebilirsiniz</small></label><div id="aklist"></div></div>
       <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
       <p class="hint" id="afound"></p>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
@@ -366,6 +367,7 @@ addEventListener('keydown',e=>{if(e.key==='Escape')menu(false)});
 
 
 let aFile=null,adminHash=null,authHash=null;
+let akSeq=0;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('belge:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 $('asel').innerHTML=Object.entries(SEC).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
@@ -396,7 +398,7 @@ async function status(){
       let r=await fetch(DB+'/'+it.id+'/meta.json'),m=r.ok?await r.json():null;
       if(m&&m.ad)pid=it.id;
       if(!(m&&m.ad)&&it.legacy){r=await fetch(DB+'/'+it.legacy+'/meta.json');m=r.ok?await r.json():null;if(m&&m.ad)pid=it.legacy}
-      if(m&&m.ad)t='✅ '+esc(m.ad);
+      if(m&&m.ad)t='✅ '+esc(m.ad)+(m.konular&&m.konular.length?'<br><small style="color:var(--muted);font-weight:600">'+esc(m.konular.join(' · '))+'</small>':'');
     }catch(e){t='?'}
     return '<div class="srow"><span>'+it.t+'</span><b>'+t+(pid?' <button class="del" data-id="'+esc(pid)+'" data-t="'+esc(it.t)+'">Sil</button>':'')+'</b></div>';
   }));
@@ -405,7 +407,7 @@ async function status(){
 async function openAdmin(){
   msg('aerr','');msg('aok','');msg('gerr','');
   $('apanel').classList.toggle('hide',!authHash);$('agate').classList.toggle('hide',!!authHash);
-  if(authHash){status();loadAdminTopics();return}
+  if(authHash){status();loadAdminTopics();refreshAdminKonu();return}
   $('gbtn').disabled=true;adminHash=undefined;
   try{const r=await fetch(DB+'/_yonetici/hash.json');if(r.ok)adminHash=await r.json()}catch(e){}
   if(adminHash===undefined){msg('gerr','Bağlantı kurulamadı. İnternetinizi kontrol edip sayfayı yenileyin.');return}
@@ -463,9 +465,15 @@ $('aup').onclick=async()=>{
     if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
     const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
-    const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta:{ad:aFile.name,tarih:Date.now()},dosya:b64})});
+    const meta={ad:aFile.name,tarih:Date.now()};
+    if(SEC[sid].sn){
+      const all=[...document.querySelectorAll('#aklist input')],sel=all.filter(i=>i.checked).map(i=>i.value);
+      if(all.length&&!sel.length)throw new Error('Lütfen en az bir konu seçin.');
+      if(sel.length)meta.konular=sel;
+    }
+    const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta,dosya:b64})});
     if(!r.ok)throw new Error('izin');
-    msg('aok','✅ '+tname(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'')+' şablonu yüklendi.');status();
+    msg('aok','✅ '+tname(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'')+' şablonu yüklendi'+(meta.konular?' ('+meta.konular.length+' konu).':'.'));status();
   }catch(e){
     msg('aerr',e.message==='izin'?'Yükleme izni verilmedi. Firebase veritabanı kuralları bu alana yazmaya izin vermiyor olabilir.':(e.message&&e.message.length<60?e.message:'Yükleme başarısız. İnternet bağlantınızı kontrol edip tekrar deneyin.'));
   }
@@ -475,14 +483,25 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn)};
+$('asel').onchange=()=>{refreshAdminKonu();const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn)};
 $('asel').onchange();
-$('aksel').onchange=()=>fillDers($('adsel'),$('aksel').value,$('adsel').value);
+$('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
+$('adsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
 {const m=new Date().getMonth();const sv=store.get('DONEM');$('dnsel').value=sv==='1'||sv==='2'?sv:(m>=8||m===0?'1':'2')}
 $('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
 $('snsel').onchange=()=>openSec(cur,SEC[cur]);
+async function refreshAdminKonu(){
+  const sn=SEC[$('asel').value].sn;$('aktwrap').classList.toggle('hide',!sn);
+  if(!sn)return;
+  const g=+$('aksel').value,d=$('adsel').value,box=$('aklist'),my=++akSeq;
+  box.innerHTML='<p class="hint" style="margin:0">Konular yükleniyor…</p>';
+  const l=await loadTopics(g,d);if(my!==akSeq)return;
+  box.innerHTML='';
+  if(!l.length){box.innerHTML='<p class="hint" style="margin:0">Bu sınıf ve ders için konu eklenmemiş. Aşağıdaki Konular kartından ekleyebilirsiniz.</p>';return}
+  l.forEach(t=>{const lb=document.createElement('label');lb.className='chk';const i=document.createElement('input');i.type='checkbox';i.value=t;lb.append(i,document.createTextNode(t));box.appendChild(lb)});
+}
 $('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input')],on=all.some(i=>!i.checked);all.forEach(i=>i.checked=on);$('kall').textContent=on?'Seçimi temizle':'Tümünü seç'};
 $('kgsel').innerHTML=gradeOpts();$('kgsel').value=$('aksel').value;fillDers($('kdsel'),$('kgsel').value,$('adsel').value);
 async function loadAdminTopics(){
@@ -502,16 +521,24 @@ $('ksave').onclick=async()=>{
     const r=await fetch(u,list.length?{method:'PUT',body:JSON.stringify(list)}:{method:'DELETE'});
     if(!r.ok)throw 0;
     $('ktxt').value=list.join('\n');
+    refreshAdminKonu();
     msg('kok','✅ '+$('kgsel').value+'. sınıf '+DERS[$('kdsel').value]+' için '+list.length+' konu kaydedildi.');
   }catch(e){msg('kerr','Kaydedilemedi. Firebase kuralları bu alana yazmaya izin vermiyor olabilir.')}
   b.disabled=false;
 };
+async function loadMeta(id,legacy){
+  try{for(const k of [id,legacy]){if(!k)continue;const r=await fetch(DB+'/'+k+'/meta.json');const m=r.ok?await r.json():null;if(m&&m.ad)return m}}catch(e){}
+  return null;
+}
 async function openSec(id,sec){
   const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
   $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.toggle('hide',!sec.sn);
   const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn=sec.sn?$('dnsel').value:'',sn=sec.sn?$('snsel').value:'';
   $('kcard').classList.toggle('hide',!sec.sn);
-  if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');loadTopics(g,d).then(l=>{if(my===seq)renderTopics(l)})}
+  if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');Promise.all([loadTopics(g,d),loadMeta(tid(id,g,d,dn,sn),g===6&&d==='dkab'&&dn==='1'&&sn==='1'?id:null)]).then(([l,m])=>{
+    if(my!==seq)return;
+    const tg=m&&Array.isArray(m.konular)?m.konular:[],f=l.filter(x=>tg.includes(x));
+    renderTopics(f.length?f:l)})}
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
   const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
   if(my!==seq)return;
