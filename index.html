@@ -143,12 +143,13 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div id="apanel" class="hide">
     <div class="card">
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
+      <div class="field hide" id="amwrap"><label>Ne yüklüyorsunuz?</label><select id="amsel"><option value="t">Sınav şablonu</option><option value="q">Konu soruları (konu konu)</option></select></div>
       <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
       <div class="field hide" id="adwrap"><label>Ders</label><select id="adsel"></select></div>
       <div class="field hide" id="aswrap"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="adnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="asnsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div>
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-      <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
+      <p class="hint" id="ahint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
       <div class="field hide" id="aktwrap"><label>Hangi konunun soruları?</label><select id="aqsel"></select><div id="aqstat" style="margin-top:12px"></div></div>
       <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{SORULAR}}</code> (seçilen konuların soruları buraya gelir; tek başına bir satırda olmalı), <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
       <p class="hint hide" id="asqhint">Bu dosyada yalnızca sorular olmalı (başlık, okul adı vb. olmadan). Aynı konuya tekrar yüklerseniz öncekinin üzerine yazılır. Konu başlığını Konular kartında değiştirirseniz o konunun soru dosyasıyla bağlantısı kopar.</p>
@@ -506,7 +507,8 @@ let aFile=null,adminHash=null,authHash=null;
 let akSeq=0;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('belge:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-$('asel').innerHTML=Object.entries(SEC).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
+const asec=()=>{const v=$('asel').value;return v==='sinav-olustur'&&$('amsel').value==='q'?'sinav-sorulari':v};
+$('asel').innerHTML=Object.entries(SEC).filter(([k,v])=>!v.q).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
 async function status(){
   const items=[];
   let sk=null;
@@ -590,10 +592,10 @@ $('afile').onchange=async e=>{
     if(!o)throw 0;
     $('aname').textContent='📎 '+f.name;
     const ks=keysOf(o);
-    if(!ks.length&&!SEC[$('asel').value].q){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
-    $('afound').textContent=SEC[$('asel').value].q?'':'Bulunan alanlar: '+ks.map(label).join(', ');
+    if(!ks.length&&!SEC[asec()].q){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
+    $('afound').textContent=SEC[asec()].q?'':'Bulunan alanlar: '+ks.map(label).join(', ');
     if($('asel').value==='gunluk-plan'){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
-    if(SEC[$('asel').value].sn&&!ks.includes('SORULAR'))$('afound').textContent+=' | ⚠️ {{SORULAR}} yeri bulunamadı; konuların soruları şablona eklenemez.';
+    if(SEC[asec()].sn&&!ks.includes('SORULAR'))$('afound').textContent+=' | ⚠️ {{SORULAR}} yeri bulunamadı; konuların soruları şablona eklenemez.';
     aFile=f;$('aup').disabled=false;
   }catch(err){msg('aerr','Dosya okunamadı; geçerli bir .docx olduğundan emin olun.')}
 };
@@ -602,7 +604,7 @@ $('aup').onclick=async()=>{
   try{
     if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
-    const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
+    const sid=asec(),gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
     const meta={ad:aFile.name,tarih:Date.now()};
     if(SEC[sid].q){
       const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
@@ -624,7 +626,8 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q)};
+$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q)};
+$('amsel').onchange=$('asel').onchange;
 $('asel').onchange();
 $('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
 $('adsel').onchange=()=>refreshAdminKonu();
@@ -634,7 +637,7 @@ $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])}
 $('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
 $('snsel').onchange=()=>openSec(cur,SEC[cur]);
 async function refreshAdminKonu(){
-  const q=SEC[$('asel').value].q;$('aktwrap').classList.toggle('hide',!q);
+  const q=SEC[asec()].q;$('aktwrap').classList.toggle('hide',!q);
   if(!q)return;
   const g=+$('aksel').value,d=$('adsel').value,sel=$('aqsel'),my=++akSeq,keep=sel.value;
   sel.innerHTML='<option value="">Yükleniyor…</option>';$('aqstat').innerHTML='';
