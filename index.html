@@ -151,7 +151,7 @@ const $=id=>document.getElementById(id);
 const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenci adı',MUDUR_ADI:'Müdür adı',TARIH:'Tarih'};
 const SEC={
  'gunluk-plan':{k:1,ds:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
- 'yillik-plan':{k:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
+ 'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
  'sinav-olustur':{t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
 };
@@ -235,7 +235,7 @@ async function loadTemplate(id,legacy){
     const z=await JSZip.loadAsync(b64,{base64:true});
     const o=await partsOf(z);
     if(!o)return false;
-    zip=z;srcs=o;weeks=detectWeeks(o['word/document.xml']);return true;
+    zip=z;srcs=o;weeks=String(id).startsWith('gunluk-plan')?detectWeeks(o['word/document.xml']):[];return true;
   }catch(e){return false}
 }
 function keysOf(o=srcs){
