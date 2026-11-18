@@ -81,6 +81,8 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .field textarea{width:100%;font-family:inherit;font-size:1rem;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;outline:none;background:#fff;resize:vertical;line-height:1.5}
 .field textarea:focus{border-color:var(--violet)}
 .chk{display:flex;align-items:flex-start;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line);font-weight:600;font-size:.92rem;line-height:1.4;cursor:pointer}
+.field label.chk{justify-content:flex-start;margin-bottom:0;font-size:.92rem;font-weight:600}
+#aktwrap{margin-top:16px}
 .chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--violet);flex-shrink:0}
 .khead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
 .khead h2{margin:0}
@@ -147,8 +149,9 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
-      <div class="field hide" id="aktwrap"><label>Hangi konulardan soru var? <small>birden fazla seçebilirsiniz</small></label><div id="aklist"></div></div>
-      <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
+      <div class="field hide" id="aktwrap"><label>Hangi konunun soruları?</label><select id="aqsel"></select><div id="aqstat" style="margin-top:12px"></div></div>
+      <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{SORULAR}}</code> (seçilen konuların soruları buraya gelir; tek başına bir satırda olmalı), <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
+      <p class="hint hide" id="asqhint">Bu dosyada yalnızca sorular olmalı (başlık, okul adı vb. olmadan). Aynı konuya tekrar yüklerseniz öncekinin üzerine yazılır. Konu başlığını Konular kartında değiştirirseniz o konunun soru dosyasıyla bağlantısı kopar.</p>
       <p class="hint" id="afound"></p>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
       <div class="msg err hide" id="aerr"></div>
@@ -181,7 +184,8 @@ const SEC={
  'gunluk-plan':{k:1,ds:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
- 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
+ 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
+ 'sinav-sorulari':{k:1,ds:1,q:1,a:1,t:'Sınav Soruları (konu başına)',i:'❓',f:[]}
 };
 const REMEMBER=['OKUL_ADI','AD_SOYAD'];
 const label=k=>LAB[k]||k.replace(/_/g,' ').toLocaleLowerCase('tr').replace(/(^|\s)\S/g,m=>m.toLocaleUpperCase('tr'));
@@ -247,21 +251,42 @@ const dersIds=g=>g>=9?['dkab','tdb1','tdb2','kuran','siyer','arapca']:g>=5?['dka
 const dersOpts=g=>dersIds(g).map(d=>'<option value="'+d+'">'+DERS[d]+'</option>').join('');
 const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
 const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'')+(SEC[id].sn?' — '+(dn||1)+'. Dönem '+(sn||1)+'. Sınav':'');
-const AUTO=['DONEM','SINAV','KONULAR','SINIF','DERS'];
+const AUTO=['DONEM','SINAV','KONULAR','SINIF','DERS','SORULAR'];
+class UserErr extends Error{}
 const kkey=(g,d)=>g+(d&&d!=='dkab'?'-'+d:'');
 async function loadTopics(g,d){
   try{const r=await fetch(KDB+'/'+kkey(g,d)+'.json');const a=r.ok?await r.json():null;
     return (Array.isArray(a)?a:(a&&typeof a==='object'?Object.values(a):[])).filter(x=>typeof x==='string'&&x.trim())}catch(e){return []}
 }
-function renderTopics(list){
+function renderTopics(list,avail){
   const box=$('klist');box.innerHTML='';$('kall').classList.toggle('hide',!list.length);
   if(!list.length){box.innerHTML='<p class="hint">Bu sınıf ve ders için konu eklenmemiş. Yönetici, Dosya Yükle ekranından konuları ekleyebilir.</p>';return}
-  list.forEach(t=>{const l=document.createElement('label');l.className='chk';const i=document.createElement('input');i.type='checkbox';i.value=t;l.append(i,document.createTextNode(t));box.appendChild(l)});
+  list.forEach(t=>{
+    const ok=!avail||avail.has(qkey(t)),l=document.createElement('label');l.className='chk';if(!ok)l.style.opacity='.55';
+    const i=document.createElement('input');i.type='checkbox';i.value=t;i.disabled=!ok;
+    l.append(i,document.createTextNode(t+(ok?'':' (soru yüklenmemiş)')));box.appendChild(l);
+  });
   $('kall').textContent='Tümünü seç';
+}
+async function loadAvail(g,d){
+  try{const r=await fetch(QDB+'/'+kkey(g,d)+'.json?shallow=true');if(!r.ok)return null;const o=await r.json();return new Set(o&&typeof o==='object'?Object.keys(o):[])}catch(e){return null}
+}
+async function fetchQuestionZips(g,d,list){
+  const zs=[],miss=[];
+  for(const t of list){
+    let b64=null;
+    try{const r=await fetch(QDB+'/'+kkey(g,d)+'/'+qkey(t)+'/dosya.json');b64=r.ok?await r.json():null}catch(e){throw new UserErr('Soru dosyalarına ulaşılamadı. İnternet bağlantınızı kontrol edin.')}
+    if(!b64){miss.push(t);continue}
+    try{zs.push(await JSZip.loadAsync(b64,{base64:true}))}catch(e){miss.push(t)}
+  }
+  if(miss.length)throw new UserErr('Şu konuların soru dosyası okunamadı: '+miss.join('; '));
+  return zs;
 }
 const SNV=/^(.+?)-(\d+)(?:-([a-z0-9]+))?-d(\d)-s(\d)$/;
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
 const KDB=DB+'/_konular';
+const QDB=DB+'/_sorular';
+const qkey=t=>{let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))>>>0;return 'q'+h.toString(36)};
 async function partsOf(z){
   const o={};
   for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
@@ -314,7 +339,114 @@ function renderForm(sec){
     d.append(l,i);box.appendChild(d);
   });
 }
-async function build(vals,wk){
+
+const RNS='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const W14='http://schemas.microsoft.com/office/word/2010/wordml';
+const WPD='http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+const PKG='http://schemas.openxmlformats.org/package/2006/relationships';
+const CTN='http://schemas.openxmlformats.org/package/2006/content-types';
+const MIME={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',tif:'image/tiff',tiff:'image/tiff',emf:'image/x-emf',wmf:'image/x-wmf',svg:'image/svg+xml'};
+const serDoc=d=>'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+new XMLSerializer().serializeToString(d).replace(/^\s*<\?xml[^>]*\?>\s*/,'');
+const rdPart=async(z,n)=>{const f=z.file(n);return f?await f.async('string'):null};
+const wval=(e,n)=>e?e.getAttributeNS(W,n):null;
+const wkids=(e,n)=>[...e.childNodes].filter(c=>c.localName===n&&c.namespaceURI===W);
+async function insertQuestions(doc,out,qzs){
+  const ph=[...doc.getElementsByTagNameNS(W,'p')].find(p=>/\{\{\s*SORULAR\s*\}\}/.test(tNodes(p).map(t=>t.textContent).join('')));
+  if(!ph)throw new UserErr('Sınav şablonunda {{SORULAR}} yeri bulunamadı. Soruların gelmesini istediğiniz satıra {{SORULAR}} yazıp şablonu yeniden yükleyin.');
+  const relPath='word/_rels/document.xml.rels';
+  const relDoc=parse(await rdPart(out,relPath)||'<Relationships xmlns="'+PKG+'"/>'),relRoot=relDoc.documentElement;
+  const ctDoc=parse(await rdPart(out,'[Content_Types].xml')),ctRoot=ctDoc.documentElement;
+  const stTxt=await rdPart(out,'word/styles.xml'),stDoc=stTxt?parse(stTxt):null;
+  const numTxt=await rdPart(out,'word/numbering.xml');let numDoc=numTxt?parse(numTxt):null,numTouched=false;
+  const sigMap=new Map(),ser=new XMLSerializer();let rc=0;
+  const ctHas=ext=>[...ctRoot.getElementsByTagName('Default')].some(x=>(x.getAttribute('Extension')||'').toLowerCase()===ext);
+  const numRoot=()=>{if(!numDoc)numDoc=parse('<w:numbering xmlns:w="'+W+'"/>');numTouched=true;return numDoc.documentElement};
+  const maxOf=(root,name,attr)=>Math.max(0,...wkids(root,name).map(e=>+wval(e,attr)||0));
+  const collected=[];
+  for(let fi=0;fi<qzs.length;fi++){
+    const qz=qzs[fi],qtxt=await rdPart(qz,'word/document.xml');if(!qtxt)continue;
+    const qdoc=parse(qtxt),nodes=[...bodyOf(qdoc).children].filter(e=>e.localName!=='sectPr');
+    const all=nodes.flatMap(n=>[n,...n.getElementsByTagName('*')]);
+    const qrels=new Map(),qr=await rdPart(qz,'word/_rels/document.xml.rels');
+    if(qr)for(const r of parse(qr).getElementsByTagName('Relationship'))qrels.set(r.getAttribute('Id'),r);
+    const qnt=await rdPart(qz,'word/numbering.xml'),qnd=qnt?parse(qnt):null;
+    const qst=await rdPart(qz,'word/styles.xml'),qsd=qst?parse(qst):null;
+    const relMap=new Map(),numMap=new Map();
+    const mapRel=async id=>{
+      const r=qrels.get(id);if(!r)return id;
+      const nid='rIdQ'+(++rc),el=relDoc.createElementNS(PKG,'Relationship'),tg=r.getAttribute('Target')||'';
+      el.setAttribute('Id',nid);el.setAttribute('Type',r.getAttribute('Type'));
+      if(r.getAttribute('TargetMode')==='External'){el.setAttribute('Target',tg);el.setAttribute('TargetMode','External')}
+      else{
+        const src=tg.charAt(0)==='/'?tg.slice(1):('word/'+tg).replace(/[^\/]+\/\.\.\//g,''),f=qz.file(src);
+        if(!f)return id;
+        const base=src.split('/').pop(),ext=(base.split('.').pop()||'').toLowerCase(),nt='media/q'+fi+'_'+(++rc)+'_'+base;
+        out.file('word/'+nt,await f.async('uint8array'));el.setAttribute('Target',nt);
+        if(MIME[ext]&&!ctHas(ext)){const d=ctDoc.createElementNS(CTN,'Default');d.setAttribute('Extension',ext);d.setAttribute('ContentType',MIME[ext]);ctRoot.insertBefore(d,ctRoot.firstChild)}
+      }
+      relRoot.appendChild(el);return nid;
+    };
+    const mapNum=async v=>{
+      if(numMap.has(v))return numMap.get(v);
+      if(!qnd)return v;
+      const qn=wkids(qnd.documentElement,'num').find(e=>wval(e,'numId')===v);if(!qn)return v;
+      const aid=wval(wkids(qn,'abstractNumId')[0],'val'),qa=wkids(qnd.documentElement,'abstractNum').find(e=>wval(e,'abstractNumId')===aid);if(!qa)return v;
+      const ac=qa.cloneNode(true);ac.removeAttributeNS(W,'abstractNumId');
+      wkids(ac,'nsid').concat(wkids(ac,'tmpl')).forEach(e=>ac.removeChild(e));
+      const ovs=wkids(qn,'lvlOverride'),sig=ser.serializeToString(ac)+'|'+ovs.map(e=>ser.serializeToString(e)).join('');
+      let nv=sigMap.get(sig);
+      if(!nv){
+        const root=numRoot(),na=numDoc.importNode(qa,true),newA=maxOf(root,'abstractNum','abstractNumId')+1;
+        na.setAttributeNS(W,'w:abstractNumId',String(newA));
+        const fn=wkids(root,'num')[0];fn?root.insertBefore(na,fn):root.appendChild(na);
+        const nn=numDoc.createElementNS(W,'w:num'),newN=maxOf(root,'num','numId')+1;
+        nn.setAttributeNS(W,'w:numId',String(newN));
+        const an=numDoc.createElementNS(W,'w:abstractNumId');an.setAttributeNS(W,'w:val',String(newA));nn.appendChild(an);
+        ovs.forEach(e=>nn.appendChild(numDoc.importNode(e,true)));
+        const cl=wkids(root,'numIdMacAtCleanup')[0];cl?root.insertBefore(nn,cl):root.appendChild(nn);
+        nv=String(newN);sigMap.set(sig,nv);
+      }
+      numMap.set(v,nv);return nv;
+    };
+    for(const e of all){e.removeAttributeNS(W14,'paraId');e.removeAttributeNS(W14,'textId')}
+    all.filter(e=>e.namespaceURI===W&&(e.localName==='bookmarkStart'||e.localName==='bookmarkEnd')).forEach(e=>e.parentNode&&e.parentNode.removeChild(e));
+    for(const e of all){
+      for(const at of [...e.attributes]){
+        if(at.namespaceURI!==RNS)continue;
+        if(!relMap.has(at.value))relMap.set(at.value,await mapRel(at.value));
+        e.setAttributeNS(RNS,at.name,relMap.get(at.value));
+      }
+      if(e.namespaceURI===W&&e.localName==='numId'){const v=wval(e,'val');if(v&&v!=='0')e.setAttributeNS(W,'w:val',await mapNum(v))}
+    }
+    if(stDoc&&qsd){
+      const used=new Set(all.filter(e=>e.namespaceURI===W&&['pStyle','rStyle','tblStyle'].includes(e.localName)).map(e=>wval(e,'val')).filter(Boolean));
+      const have=new Set(wkids(stDoc.documentElement,'style').map(e=>wval(e,'styleId'))),qmap=new Map(wkids(qsd.documentElement,'style').map(e=>[wval(e,'styleId'),e]));
+      const addSt=async id=>{
+        if(!id||have.has(id)||!qmap.has(id))return;
+        have.add(id);const se=qmap.get(id);
+        for(const nm of ['basedOn','next','link']){const x=wkids(se,nm)[0];if(x)await addSt(wval(x,'val'))}
+        const c=stDoc.importNode(se,true);
+        for(const ne of [...c.getElementsByTagNameNS(W,'numId')]){const v=wval(ne,'val');if(v&&v!=='0')ne.setAttributeNS(W,'w:val',await mapNum(v))}
+        stDoc.documentElement.appendChild(c);
+      };
+      for(const id of used)await addSt(id);
+    }
+    nodes.forEach(n=>collected.push(doc.importNode(n,true)));
+  }
+  const par=ph.parentNode;
+  collected.forEach(n=>par.insertBefore(n,ph));par.removeChild(ph);
+  let dn=0;for(const e of doc.getElementsByTagNameNS(WPD,'docPr'))e.setAttribute('id',String(++dn));
+  if(numTouched){
+    out.file('word/numbering.xml',serDoc(numDoc));
+    if(!numTxt){
+      const r=relDoc.createElementNS(PKG,'Relationship');r.setAttribute('Id','rIdQnum');r.setAttribute('Type',RNS+'/numbering');r.setAttribute('Target','numbering.xml');relRoot.appendChild(r);
+      const o=ctDoc.createElementNS(CTN,'Override');o.setAttribute('PartName','/word/numbering.xml');o.setAttribute('ContentType','application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml');ctRoot.appendChild(o);
+    }
+  }
+  out.file(relPath,serDoc(relDoc));out.file('[Content_Types].xml',serDoc(ctDoc));
+  if(stDoc)out.file('word/styles.xml',serDoc(stDoc));
+}
+async function build(vals,wk,qz){
   const out=await JSZip.loadAsync(await zip.generateAsync({type:'uint8array'}));
   for(const [n,s] of Object.entries(srcs)){
     const doc=parse(s);
@@ -334,6 +466,7 @@ async function build(vals,wk){
       }
       nodes.forEach((t,k)=>{t.textContent=strs[k];t.setAttributeNS(XNS,'xml:space','preserve')});
     }
+    if(qz&&n==='word/document.xml')await insertQuestions(doc,out,qz);
     out.file(n,'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+new XMLSerializer().serializeToString(doc).replace(/^\s*<\?xml[^>]*\?>\s*/,''));
   }
   return out.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});
@@ -345,20 +478,23 @@ $('go').onclick=async()=>{
   try{
     const vals={};
     document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
+    let qz=null;
     if(SEC[cur].sn){
-      const all=[...document.querySelectorAll('#klist input')],sel=all.filter(i=>i.checked).map(i=>i.value);
-      if(all.length&&!sel.length)throw new Error('Lütfen en az bir konu seçin.');
+      const all=[...document.querySelectorAll('#klist input')],ena=all.filter(i=>!i.disabled),sel=ena.filter(i=>i.checked).map(i=>i.value);
+      if(all.length&&!ena.length)throw new UserErr('Bu ders için henüz soru dosyası yüklenmemiş.');
+      if(ena.length&&!sel.length)throw new UserErr('Lütfen en az bir konu seçin.');
       vals.KONULAR=sel.join(', ');vals.DONEM=$('dnsel').value;vals.SINAV=$('snsel').value;vals.SINIF=$('ksel').value;vals.DERS=DERS[$('dsel').value]||'';
+      if(sel.length){b.textContent='Sorular alınıyor…';qz=await fetchQuestionZips(+$('ksel').value,$('dsel').value,sel)}
     }
     const wk=$('wk')?+$('wk').value:0;
-    save(await build(vals,wk),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(SEC[cur].sn?'_'+$('dnsel').value+'-donem_'+$('snsel').value+'-sinav':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
+    save(await build(vals,wk,qz),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(SEC[cur].sn?'_'+$('dnsel').value+'-donem_'+$('snsel').value+'-sinav':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.');
-  }catch(e){msg('err',e.message&&e.message.indexOf('konu')>0?e.message:'Belge hazırlanırken bir hata oluştu.')}
+  }catch(e){msg('err',e instanceof UserErr?e.message:'Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
 };
 
 const nav=$('drawer');
-nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).map(([k,v])=>'<a href="#'+k+'" data-id="'+k+'"><span>'+v.i+'</span>'+v.t+'</a>').join(''));
+nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a).map(([k,v])=>'<a href="#'+k+'" data-id="'+k+'"><span>'+v.i+'</span>'+v.t+'</a>').join(''));
 nav.insertAdjacentHTML('beforeend','<a href="#dosya-yukle" data-id="dosya-yukle" style="margin-top:10px;border-top:1px solid var(--line);border-radius:0 0 12px 12px;padding-top:16px"><span>📤</span>Dosya Yükle</a>');
 const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
@@ -376,6 +512,7 @@ async function status(){
   let sk=null;
   try{const r=await fetch(DB+'.json?shallow=true');const o=r.ok?await r.json():null;if(o&&typeof o==='object')sk=Object.keys(o)}catch(e){}
   Object.entries(SEC).forEach(([k,v])=>{
+    if(v.q)return;
     if(v.sn&&sk){
       sk.filter(x=>x===k||x.startsWith(k+'-')).sort().forEach(x=>{
         const m=x.match(SNV);
@@ -453,9 +590,10 @@ $('afile').onchange=async e=>{
     if(!o)throw 0;
     $('aname').textContent='📎 '+f.name;
     const ks=keysOf(o);
-    if(!ks.length){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
-    $('afound').textContent='Bulunan alanlar: '+ks.map(label).join(', ');
+    if(!ks.length&&!SEC[$('asel').value].q){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
+    $('afound').textContent=SEC[$('asel').value].q?'':'Bulunan alanlar: '+ks.map(label).join(', ');
     if($('asel').value==='gunluk-plan'){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
+    if(SEC[$('asel').value].sn&&!ks.includes('SORULAR'))$('afound').textContent+=' | ⚠️ {{SORULAR}} yeri bulunamadı; konuların soruları şablona eklenemez.';
     aFile=f;$('aup').disabled=false;
   }catch(err){msg('aerr','Dosya okunamadı; geçerli bir .docx olduğundan emin olun.')}
 };
@@ -466,10 +604,13 @@ $('aup').onclick=async()=>{
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
     const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
     const meta={ad:aFile.name,tarih:Date.now()};
-    if(SEC[sid].sn){
-      const all=[...document.querySelectorAll('#aklist input')],sel=all.filter(i=>i.checked).map(i=>i.value);
-      if(all.length&&!sel.length)throw new Error('Lütfen en az bir konu seçin.');
-      if(sel.length)meta.konular=sel;
+    if(SEC[sid].q){
+      const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
+      meta.konu=tp;
+      const rq=await fetch(QDB+'/'+kkey(+gg,dd)+'/'+qkey(tp)+'.json',{method:'PUT',body:JSON.stringify({meta,dosya:b64})});
+      if(!rq.ok)throw new Error('izin');
+      msg('aok','✅ '+gg+'. sınıf '+DERS[dd]+' — '+tp+' soruları yüklendi.');refreshAdminKonu();
+      btn.disabled=false;btn.textContent='Yükle';return;
     }
     const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta,dosya:b64})});
     if(!r.ok)throw new Error('izin');
@@ -483,7 +624,7 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn)};
+$('asel').onchange=()=>{refreshAdminKonu();const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q)};
 $('asel').onchange();
 $('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
 $('adsel').onchange=()=>refreshAdminKonu();
@@ -493,16 +634,31 @@ $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])}
 $('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
 $('snsel').onchange=()=>openSec(cur,SEC[cur]);
 async function refreshAdminKonu(){
-  const sn=SEC[$('asel').value].sn;$('aktwrap').classList.toggle('hide',!sn);
-  if(!sn)return;
-  const g=+$('aksel').value,d=$('adsel').value,box=$('aklist'),my=++akSeq;
-  box.innerHTML='<p class="hint" style="margin:0">Konular yükleniyor…</p>';
+  const q=SEC[$('asel').value].q;$('aktwrap').classList.toggle('hide',!q);
+  if(!q)return;
+  const g=+$('aksel').value,d=$('adsel').value,sel=$('aqsel'),my=++akSeq,keep=sel.value;
+  sel.innerHTML='<option value="">Yükleniyor…</option>';$('aqstat').innerHTML='';
   const l=await loadTopics(g,d);if(my!==akSeq)return;
-  box.innerHTML='';
-  if(!l.length){box.innerHTML='<p class="hint" style="margin:0">Bu sınıf ve ders için konu eklenmemiş. Aşağıdaki Konular kartından ekleyebilirsiniz.</p>';return}
-  l.forEach(t=>{const lb=document.createElement('label');lb.className='chk';const i=document.createElement('input');i.type='checkbox';i.value=t;lb.append(i,document.createTextNode(t));box.appendChild(lb)});
+  sel.innerHTML='';
+  if(!l.length){sel.innerHTML='<option value="">Önce Konular kartından konu ekleyin</option>';return}
+  l.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o)});
+  if(l.includes(keep))sel.value=keep;
+  const rows=await Promise.all(l.map(async t=>{
+    let m=null;try{const r=await fetch(QDB+'/'+kkey(g,d)+'/'+qkey(t)+'/meta.json');m=r.ok?await r.json():null}catch(e){}
+    return '<div class="srow"><span>'+esc(t)+'</span><b>'+(m&&m.ad?'✅ '+esc(m.ad)+' <button class="del" data-p="'+esc(kkey(g,d)+'/'+qkey(t))+'" data-t="'+esc(t)+'">Sil</button>':'—')+'</b></div>';
+  }));
+  if(my!==akSeq)return;
+  $('aqstat').innerHTML=rows.join('');
 }
-$('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input')],on=all.some(i=>!i.checked);all.forEach(i=>i.checked=on);$('kall').textContent=on?'Seçimi temizle':'Tümünü seç'};
+$('aqstat').onclick=async e=>{
+  const b=e.target.closest('.del');if(!b||!authHash)return;
+  if(!confirm(b.dataset.t+' konusunun soru dosyası silinsin mi?'))return;
+  b.disabled=true;msg('aerr','');msg('aok','');
+  try{const r=await fetch(QDB+'/'+b.dataset.p+'.json',{method:'DELETE'});if(!r.ok)throw 0;msg('aok','🗑️ Soru dosyası silindi.')}
+  catch(err){msg('aerr','Silinemedi. Firebase kuralları silmeye izin vermiyor olabilir.');b.disabled=false;return}
+  refreshAdminKonu();
+};
+$('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input:not(:disabled)')],on=all.some(i=>!i.checked);all.forEach(i=>i.checked=on);$('kall').textContent=on?'Seçimi temizle':'Tümünü seç'};
 $('kgsel').innerHTML=gradeOpts();$('kgsel').value=$('aksel').value;fillDers($('kdsel'),$('kgsel').value,$('adsel').value);
 async function loadAdminTopics(){
   msg('kerr','');msg('kok','');$('ktxt').value='';$('ktxt').disabled=true;
@@ -535,10 +691,7 @@ async function openSec(id,sec){
   $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.toggle('hide',!sec.sn);
   const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn=sec.sn?$('dnsel').value:'',sn=sec.sn?$('snsel').value:'';
   $('kcard').classList.toggle('hide',!sec.sn);
-  if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');Promise.all([loadTopics(g,d),loadMeta(tid(id,g,d,dn,sn),g===6&&d==='dkab'&&dn==='1'&&sn==='1'?id:null)]).then(([l,m])=>{
-    if(my!==seq)return;
-    const tg=m&&Array.isArray(m.konular)?m.konular:[],f=l.filter(x=>tg.includes(x));
-    renderTopics(f.length?f:l)})}
+  if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');Promise.all([loadTopics(g,d),loadAvail(g,d)]).then(([l,av])=>{if(my===seq)renderTopics(l,av)})}
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
   const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
   if(my!==seq)return;
@@ -546,7 +699,7 @@ async function openSec(id,sec){
   renderForm(sec);$('go').disabled=false;
 }
 function route(){
-  const id=location.hash.slice(1),sec=SEC[id];
+  const id=location.hash.slice(1),sec=SEC[id]&&!SEC[id].a?SEC[id]:undefined;
   const adm=id==='dosya-yukle';
   $('home').classList.toggle('hide',!!sec||adm);$('tool').classList.toggle('hide',!sec);$('admin').classList.toggle('hide',!adm);
   nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===((sec||adm)?id:'home')));
