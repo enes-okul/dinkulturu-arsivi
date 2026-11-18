@@ -114,7 +114,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
   </section>
   <section id="tool" class="hide">
     <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
-    <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div><div class="field hide" id="dwrap" style="margin:12px 0 0"><label>Ders</label><select id="dsel"></select></div></div>
+    <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div><div class="field hide" id="dwrap" style="margin:12px 0 0"><label>Ders</label><select id="dsel"></select></div><div class="field hide" id="swrap" style="margin:12px 0 0"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="dnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="snsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div></div>
 
   <div class="card" id="fcard">
     <div id="fields"></div>
@@ -135,6 +135,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
       <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
       <div class="field hide" id="adwrap"><label>Ders</label><select id="adsel"></select></div>
+      <div class="field hide" id="aswrap"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="adnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="asnsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div>
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
@@ -160,7 +161,7 @@ const SEC={
  'gunluk-plan':{k:1,ds:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
- 'sinav-olustur':{t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
+ 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']}
 };
 const REMEMBER=['OKUL_ADI','AD_SOYAD'];
 const label=k=>LAB[k]||k.replace(/_/g,' ').toLocaleLowerCase('tr').replace(/(^|\s)\S/g,m=>m.toLocaleUpperCase('tr'));
@@ -224,8 +225,9 @@ const gradeOpts=()=>KAD.map(n=>'<option value="'+n+'">'+n+'. Sınıf</option>').
 const DERS={dkab:'Din Kültürü ve Ahlak Bilgisi',tdb1:'Temel Dini Bilgiler 1',tdb2:'Temel Dini Bilgiler 2',kuran:"Kur'an-ı Kerim",siyer:'Peygamberimizin Hayatı',arapca:'Arapça',ayy1:'Ahlak ve Yurttaşlık Eğitimi (I)',ayy2:'Ahlak ve Yurttaşlık Eğitimi (II)'};
 const dersIds=g=>g>=9?['dkab','tdb1','tdb2','kuran','siyer','arapca']:g>=5?['dkab','tdb1','tdb2','kuran','siyer','arapca','ayy1','ayy2']:['dkab'];
 const dersOpts=g=>dersIds(g).map(d=>'<option value="'+d+'">'+DERS[d]+'</option>').join('');
-const tid=(id,g,d)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:''):id;
-const tname=(id,g,d)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'');
+const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
+const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'')+(SEC[id].sn?' — '+(dn||1)+'. Dönem '+(sn||1)+'. Sınav':'');
+const SNV=/^(.+?)-(\d+)(?:-([a-z0-9]+))?-d(\d)-s(\d)$/;
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
 async function partsOf(z){
   const o={};
@@ -311,7 +313,7 @@ $('go').onclick=async()=>{
     const vals={};
     document.querySelectorAll('#fields input').forEach(i=>{const k=i.dataset.key;vals[k]=i.value.replace(/\s*\n\s*/g,' ').trim();if(REMEMBER.includes(k))store.set(k,vals[k])});
     const wk=$('wk')?+$('wk').value:0;
-    save(await build(vals,wk),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
+    save(await build(vals,wk),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(SEC[cur].sn?'_'+$('dnsel').value+'-donem_'+$('snsel').value+'-sinav':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.');
   }catch(e){msg('err','Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
@@ -332,7 +334,21 @@ async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncod
 $('asel').innerHTML=Object.entries(SEC).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
 async function status(){
   const items=[];
+  let sk=null;
+  try{const r=await fetch(DB+'.json?shallow=true');const o=r.ok?await r.json():null;if(o&&typeof o==='object')sk=Object.keys(o)}catch(e){}
   Object.entries(SEC).forEach(([k,v])=>{
+    if(v.sn&&sk){
+      sk.filter(x=>x===k||x.startsWith(k+'-')).sort().forEach(x=>{
+        const m=x.match(SNV);
+        items.push({id:x,legacy:null,t:m?v.i+' '+v.t+' — '+m[2]+'. Sınıf — '+DERS[m[3]||'dkab']+' — '+m[4]+'. Dönem '+m[5]+'. Sınav':v.i+' '+v.t+' (eski şablon)'});
+      });
+      if(!items.some(i=>i.id.startsWith(k)))items.push({id:k+'-x',legacy:null,t:v.i+' '+v.t+' — henüz şablon yok'});
+      return;
+    }
+    if(v.sn){
+      KAD.forEach(g=>dersIds(g).forEach(d=>[1,2].forEach(dn=>[1,2,3].forEach(sn=>items.push({id:tid(k,g,d,dn,sn),legacy:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]+' — '+dn+'. Dönem '+sn+'. Sınav'})))));
+      return;
+    }
     if(v.k&&v.ds)KAD.forEach(g=>dersIds(g).forEach(d=>items.push({id:tid(k,g,d),legacy:g===6&&d==='dkab'?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]})));
     else if(v.k)KAD.forEach(g=>items.push({id:tid(k,g),legacy:g===6?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf'}));
     else items.push({id:k,legacy:null,t:v.i+' '+v.t});
@@ -409,10 +425,10 @@ $('aup').onclick=async()=>{
   try{
     if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
-    const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd);
+    const sid=$('asel').value,gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
     const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta:{ad:aFile.name,tarih:Date.now()},dosya:b64})});
     if(!r.ok)throw new Error('izin');
-    msg('aok','✅ '+tname(sid,gg,dd)+' şablonu yüklendi.');status();
+    msg('aok','✅ '+tname(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'')+' şablonu yüklendi.');status();
   }catch(e){
     msg('aerr',e.message==='izin'?'Yükleme izni verilmedi. Firebase veritabanı kuralları bu alana yazmaya izin vermiyor olabilir.':(e.message&&e.message.length<60?e.message:'Yükleme başarısız. İnternet bağlantınızı kontrol edip tekrar deneyin.'));
   }
@@ -422,19 +438,22 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds)};
+$('asel').onchange=()=>{const s=SEC[$('asel').value];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn)};
 $('asel').onchange();
 $('aksel').onchange=()=>fillDers($('adsel'),$('aksel').value,$('adsel').value);
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
+{const m=new Date().getMonth();const sv=store.get('DONEM');$('dnsel').value=sv==='1'||sv==='2'?sv:(m>=8||m===0?'1':'2')}
+$('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
+$('snsel').onchange=()=>openSec(cur,SEC[cur]);
 async function openSec(id,sec){
   const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
-  $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);
-  const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'';
+  $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.toggle('hide',!sec.sn);
+  const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn=sec.sn?$('dnsel').value:'',sn=sec.sn?$('snsel').value:'';
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
-  const ok=await loadTemplate(tid(id,g,d),sec.k&&g===6&&(!sec.ds||d==='dkab')?id:null);
+  const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
   if(my!==seq)return;
-  if(!ok){$('fields').innerHTML='';msg('err',sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
+  if(!ok){$('fields').innerHTML='';msg('err',sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+(sec.sn?' '+dn+'. dönem '+sn+'. sınav':'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
   renderForm(sec);$('go').disabled=false;
 }
 function route(){
