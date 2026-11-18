@@ -246,7 +246,6 @@ const dersIds=g=>g>=9?['dkab','tdb1','tdb2','kuran','siyer','arapca']:g>=5?['dka
 const dersOpts=g=>dersIds(g).map(d=>'<option value="'+d+'">'+DERS[d]+'</option>').join('');
 const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
 const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'')+(SEC[id].sn?' — '+(dn||1)+'. Dönem '+(sn||1)+'. Sınav':'');
-const KDB=DB+'/_konular';
 const AUTO=['DONEM','SINAV','KONULAR','SINIF','DERS'];
 const kkey=(g,d)=>g+(d&&d!=='dkab'?'-'+d:'');
 async function loadTopics(g,d){
@@ -261,6 +260,7 @@ function renderTopics(list){
 }
 const SNV=/^(.+?)-(\d+)(?:-([a-z0-9]+))?-d(\d)-s(\d)$/;
 const DB='https://dkab-sorx-default-rtdb.europe-west1.firebasedatabase.app/belge_sablonlar';
+const KDB=DB+'/_konular';
 async function partsOf(z){
   const o={};
   for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
