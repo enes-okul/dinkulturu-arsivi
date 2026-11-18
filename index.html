@@ -185,7 +185,7 @@ const SEC={
  'gunluk-plan':{k:1,ds:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'bep-plan':{t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','OGRENCI_ADI','TARIH']},
- 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Bilgilerinizi girin, sınav kâğıdınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','TARIH']},
+ 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Okul adınızı yazın, konuları seçin; sınav kâğıdınız hazır olsun.',f:['OKUL_ADI']},
  'sinav-sorulari':{k:1,ds:1,q:1,a:1,t:'Sınav Soruları (konu başına)',i:'❓',f:[]}
 };
 const REMEMBER=['OKUL_ADI','AD_SOYAD'];
@@ -698,7 +698,7 @@ async function openSec(id,sec){
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
   const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
   if(my!==seq)return;
-  if(!ok){$('fields').innerHTML='';msg('err',sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+(sec.sn?' '+dn+'. dönem '+sn+'. sınav':'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
+  if(!ok){$('fields').innerHTML='';if(sec.sn){srcs={};renderForm(sec)}msg('err',sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+(sec.sn?' '+dn+'. dönem '+sn+'. sınav':'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
   renderForm(sec);$('go').disabled=false;
 }
 function route(){
