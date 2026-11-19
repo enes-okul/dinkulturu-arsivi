@@ -160,12 +160,14 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <div class="msg ok hide" id="aok"></div>
     </div>
     <div class="card">
-      <h2>📚 Konular (ünite başlıkları)</h2>
+      <h2 id="kth" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0" role="button" tabindex="0" aria-expanded="false"><span>📚 Konular (ünite başlıkları)</span><span id="kchev" style="font-size:.9rem;transition:transform .2s">▼</span></h2>
+      <div id="kbody" class="hide" style="margin-top:12px">
       <p class="hint" style="margin:0 0 12px">Önce ünite adını, altına alt başlıkları başına - koyarak yazın. Sınav oluştururken ve indirirken alt başlıklardan birden fazlası seçilebilir. Alt başlığı olmayan ünite tek başına seçilir.</p>
       <div class="field"><label>Sınıf</label><select id="kgsel"></select></div>
       <div class="field"><label>Ders</label><select id="kdsel"></select></div>
       <div class="field"><label>Konular <small>ünite satırı; alt başlıklar - ile</small></label><textarea id="ktxt" rows="9" placeholder="1. Ünite: Kader İnancı&#10;- 1.1 Kader ve Kaza&#10;- 1.2 Evrendeki Düzen&#10;2. Ünite: Namaz&#10;- 2.1 Namazın Önemi"></textarea></div>
       <div class="row"><button class="btn" id="ksave">Konuları kaydet</button></div>
+      </div>
       <div class="msg err hide" id="kerr"></div>
       <div class="msg ok hide" id="kok"></div>
     </div>
@@ -706,6 +708,9 @@ async function loadAdminTopics(){
 }
 $('kgsel').onchange=()=>{fillDers($('kdsel'),$('kgsel').value,$('kdsel').value);loadAdminTopics()};
 $('kdsel').onchange=loadAdminTopics;
+function setK(open){$('kbody').classList.toggle('hide',!open);$('kth').setAttribute('aria-expanded',open?'true':'false');$('kchev').style.transform=open?'rotate(180deg)':'none'}
+$('kth').onclick=()=>setK($('kbody').classList.contains('hide'));
+$('kth').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('kth').onclick()}};
 $('ksave').onclick=async()=>{
   const b=$('ksave');msg('kerr','');msg('kok','');
   if(!authHash){msg('kerr','Önce yönetici şifresiyle giriş yapın.');return}
@@ -722,7 +727,7 @@ $('ksave').onclick=async()=>{
     if(!r.ok)throw 0;
     $('ktxt').value=list.join('\n');
     refreshAdminKonu();
-    msg('kok','✅ '+$('kgsel').value+'. sınıf '+DERS[$('kdsel').value]+' için '+leavesCount(list)+' konu kaydedildi.');
+    msg('kok','✅ '+$('kgsel').value+'. sınıf '+DERS[$('kdsel').value]+' için '+leavesCount(list)+' konu kaydedildi.');setK(false);
   }catch(e){msg('kerr','Kaydedilemedi. Firebase kuralları bu alana yazmaya izin vermiyor olabilir.')}
   b.disabled=false;
 };
