@@ -70,7 +70,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .drawer.open{transform:none}
 .drawer .dh{display:flex;align-items:center;gap:10px;padding:0 8px 16px;margin-bottom:8px;border-bottom:1px solid var(--line);font-family:'Space Grotesk',sans-serif;font-weight:700}
 .drawer a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--ink);text-decoration:none;font-weight:700}
-.drawer a.on{background:var(--violet-s);color:var(--violet-d)}
+.drawer .dgrp{display:flex;align-items:center;gap:12px;padding:11px 12px 4px;color:var(--ink);font-weight:700}.drawer a.sub{margin-left:26px;padding:8px 12px;font-size:.92rem;font-weight:600}.drawer a.on{background:var(--violet-s);color:var(--violet-d)}
 .hero{background:linear-gradient(135deg,var(--violet),#8F87FF);color:#fff;border-radius:20px;padding:26px 20px;margin-bottom:16px}
 .hero h1{font-size:1.5rem}.hero p{margin:8px 0 0;opacity:.92;line-height:1.5;font-weight:600}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -190,7 +190,8 @@ const LAB={OKUL_ADI:'Okul adı',AD_SOYAD:'Öğretmen adı',OGRENCI_ADI:'Öğrenc
 const SEC={
  'gunluk-plan':{k:1,ds:1,t:'Günlük Plan',i:'📅',s:'Günlük planını hazırla',d:'Bilgilerinizi girin, günlük planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
- 'bep-plan':{k:1,ds:1,dots:1,t:'BEP Planı',i:'🧩',s:'BEP planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP planınız hazır olsun.',f:['KAYMAKAMLIK','OKUL_ADI','OGRENCI_ADI'],sig:['VELI_ADI','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI']},
+ 'bep-plan':{k:1,ds:1,dots:1,t:'BEP Yıllık Planı',i:'🧩',s:'BEP yıllık planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP yıllık planınız hazır olsun.',f:['KAYMAKAMLIK','OKUL_ADI','OGRENCI_ADI'],sig:['VELI_ADI','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI']},
+ 'bep-gunluk':{k:1,ds:1,dots:1,t:'BEP Günlük Planı',i:'🗒️',s:'BEP günlük planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP günlük planınız hazır olsun.',f:['KAYMAKAMLIK','OKUL_ADI','OGRENCI_ADI'],sig:['VELI_ADI','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI']},
  'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Okul adınızı yazın, konuları seçin; sınav kâğıdınız hazır olsun.',f:['OKUL_ADI']},
  'sinav-sorulari':{k:1,ds:1,q:1,a:1,t:'Sınav Soruları (konu başına)',i:'❓',f:[]}
 };
@@ -453,7 +454,7 @@ async function loadTemplate(id,legacy){
     const z=await JSZip.loadAsync(b64,{base64:true});
     const o=await partsOf(z);
     if(!o)return false;
-    zip=z;srcs=o;weeks=String(id).startsWith('gunluk-plan')?detectWeeks(o['word/document.xml']):[];return true;
+    zip=z;srcs=o;weeks=/^(gunluk-plan|bep-gunluk)/.test(String(id))?detectWeeks(o['word/document.xml']):[];return true;
   }catch(e){return false}
 }
 function keysOf(o=srcs){
@@ -664,7 +665,8 @@ $('go').onclick=async()=>{
 };
 
 const nav=$('drawer');
-nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a).map(([k,v])=>'<a href="#'+k+'" data-id="'+k+'"><span>'+v.i+'</span>'+v.t+'</a>').join(''));
+const navA=(k,v,sub)=>'<a href="#'+k+'" data-id="'+k+'"'+(sub?' class="sub"':'')+'><span>'+v.i+'</span>'+(sub||v.t)+'</a>';
+nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a&&k!=='bep-gunluk').map(([k,v])=>k==='bep-plan'?'<div class="dgrp"><span>🧩</span>BEP Planı</div>'+navA('bep-plan',v,'Yıllık Plan')+navA('bep-gunluk',SEC['bep-gunluk'],'Günlük Plan'):navA(k,v)).join(''));
 nav.insertAdjacentHTML('beforeend','<a href="#dosya-yukle" data-id="dosya-yukle" style="margin-top:10px;border-top:1px solid var(--line);border-radius:0 0 12px 12px;padding-top:16px"><span>📤</span>Dosya Yükle</a>');
 const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
@@ -764,7 +766,7 @@ $('afile').onchange=async e=>{
     const ks=keysOf(o);
     if(!ks.length&&!SEC[asec()].q){msg('aerr','Bu dosyada {{OKUL_ADI}} gibi işaretli yer bulunamadı. Okul adı, öğretmen adı, tarih gibi yerleri bu biçimde işaretleyip yeniden yükleyin.');return}
     $('afound').textContent=SEC[asec()].q?'':'Bulunan alanlar: '+ks.map(label).join(', ');
-    if($('asel').value==='gunluk-plan'){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
+    if(['gunluk-plan','bep-gunluk'].includes($('asel').value)){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
     if(SEC[asec()].sn&&!ks.includes('SORULAR'))$('afound').textContent+=' | ⚠️ {{SORULAR}} yeri bulunamadı; konuların soruları şablona eklenemez.';
     if(isBulk()){
       const an=await splitBulk(await f.arrayBuffer());
