@@ -156,7 +156,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <div class="hide" id="aktwrap"><div class="field" id="atfield"><label>Soru türü</label><select id="atsel"></select></div><div class="field" style="margin-bottom:0"><label>Hangi konunun soruları?</label><select id="aqsel"></select></div><label class="chk hide" id="aallw" style="margin-top:10px;border-bottom:0"><input type="checkbox" id="aall"><span>Üniteye ait <b>tüm alt başlıklara</b> kaydet <small style="color:var(--muted);font-weight:600">(dosya bütün ünitenin soru bankasıysa işaretleyin)</small></span></label><div id="aqstat" style="margin-top:12px"></div></div>
       <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{SORULAR}}</code> (seçilen konuların soruları buraya gelir; tek başına bir satırda olmalı), <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
       <p class="hint hide" id="asqhint">Bu dosyada yalnızca sorular olmalı (başlık, okul adı vb. olmadan). Soru türünü yukarıdan seçin; dosyada yalnızca o türdeki sorular olmalı. Aynı konu ve türe tekrar yüklerseniz öncekinin üzerine yazılır. Ünite veya alt başlık adını Konular kartında değiştirirseniz o konunun soru dosyasıyla bağlantısı kopar.</p>
-      <p class="hint hide" id="asbhint">Tek Word dosyasında her soru türünü kendi başlığıyla ayırın (<code>BOŞLUK DOLDURMA</code>, <code>DOĞRU – YANLIŞ</code>, <code>KISA CEVAPLI SORULAR</code>, <code>ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)</code>, <code>ÇOKTAN SEÇMELİ SORULAR (5 ŞIKLI)</code>, <code>AÇIK UÇLU SORULAR</code>, <code>PARAGRAF YANLIŞLARI</code>, <code>EŞLEŞTİRME SORULARI</code>, <code>KARIŞIK KELİME SORULARI</code>). Sistem her bölümü bulup seçtiğiniz konunun ilgili soru türüne kaydeder; başlığın kendisi kaydedilmez. <code>CEVAP ANAHTARI</code> başlığından sonrası yok sayılır. Dosyada bulunmayan türlere dokunulmaz, bulunanların üzerine yazılır.</p>
+      <p class="hint hide" id="asbhint">Tek Word dosyasında her soru türünü kendi başlığıyla ayırın (<code>BOŞLUK DOLDURMA</code>, <code>DOĞRU – YANLIŞ</code>, <code>KISA CEVAPLI SORULAR</code>, <code>ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)</code>, <code>ÇOKTAN SEÇMELİ SORULAR (5 ŞIKLI)</code>, <code>AÇIK UÇLU SORULAR</code>, <code>PARAGRAF YANLIŞLARI</code>, <code>EŞLEŞTİRME SORULARI</code>, <code>KARIŞIK KELİME SORULARI</code>, <code>ÇENGEL BULMACA</code>). Sistem her bölümü bulup seçtiğiniz konunun ilgili soru türüne kaydeder; başlığın kendisi kaydedilmez. <code>CEVAP ANAHTARI</code> başlığından sonrası yok sayılır. Dosyada bulunmayan türlere dokunulmaz, bulunanların üzerine yazılır.</p>
       <p class="hint" id="afound"></p>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
       <div class="msg err hide" id="aerr"></div>
@@ -192,7 +192,7 @@ const SEC={
  'yillik-plan':{k:1,ds:1,t:'Yıllık Plan',i:'🗓️',s:'Yıllık planını hazırla',d:'Bilgilerinizi girin, yıllık planınız hazır olsun.',f:['OKUL_ADI','AD_SOYAD','MUDUR_ADI','TARIH']},
  'bep-plan':{k:1,ds:1,dots:1,t:'BEP Yıllık Planı',i:'🧩',s:'BEP yıllık planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP yıllık planınız hazır olsun.',f:['KAYMAKAMLIK','OKUL_ADI','OGRENCI_ADI'],sig:['VELI_ADI','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI']},
  'bep-gunluk':{k:1,ds:1,dots:1,t:'BEP Günlük Planı',i:'🗒️',s:'BEP günlük planını hazırla',d:'Öğrenci ve okul bilgilerini girin, BEP günlük planınız hazır olsun.',f:['KAYMAKAMLIK','OKUL_ADI','OGRENCI_ADI'],sig:['VELI_ADI','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI']},
- 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınav Oluştur',i:'📝',s:'Sınav kâğıdını hazırla',d:'Okul adınızı yazın, konuları seçin; sınav kâğıdınız hazır olsun.',f:['OKUL_ADI']},
+ 'sinav-olustur':{k:1,ds:1,sn:1,t:'Sınıf İçi Etkinlikler',i:'📝',s:'Etkinlik kâğıdını hazırla',d:'Okul adınızı yazın, konuları seçin; etkinlik kâğıdınız hazır olsun.',f:['OKUL_ADI']},
  'sinav-sorulari':{k:1,ds:1,q:1,a:1,t:'Sınav Soruları (konu başına)',i:'❓',f:[]}
 };
 const REMEMBER=['OKUL_ADI','AD_SOYAD','KAYMAKAMLIK','SINIF_REHBER_ADI','BRANS_OGR_ADI','REHBER_OGR_ADI','BIRIM_BASKANI_ADI'];
@@ -351,13 +351,14 @@ const QT=[
  {id:'paragraf',t:'Paragraf Yanlışları'},
  {id:'esles',t:'Eşleştirme Soruları'},
  {id:'karisik',t:'Karışık Kelime Soruları'},
+ {id:'cengel',t:'Çengel Bulmaca'},
  {id:'genel',t:'Genel (tür belirtilmemiş / eski yüklemeler)'}];
 const QTN=Object.fromEntries(QT.map(x=>[x.id,x.t]));
 /* 'genel' eski konum (konu/dosya); diğer türler konu/t/<tür>/dosya */
 const qbase=(g,d,t,ty)=>QDB+'/'+kkey(g,d)+'/'+qkey(t)+(ty&&ty!=='genel'?'/t/'+ty:'');
 let topicList=null,topicAvail=null;
 const selTypes=()=>[...document.querySelectorAll('#tlist input:checked')].map(i=>i.value);
-const QTS={bosluk:'Boşluk Doldurma',dy:'Doğru–Yanlış',kisa:'Kısa Cevaplı',cs4:'Çoktan Seçmeli (4)',cs5:'Çoktan Seçmeli (5)',acik:'Açık Uçlu',paragraf:'Paragraf Yanlışları',esles:'Eşleştirme',karisik:'Karışık Kelime',genel:'Genel'};
+const QTS={bosluk:'Boşluk Doldurma',dy:'Doğru–Yanlış',kisa:'Kısa Cevaplı',cs4:'Çoktan Seçmeli (4)',cs5:'Çoktan Seçmeli (5)',acik:'Açık Uçlu',paragraf:'Paragraf Yanlışları',esles:'Eşleştirme',karisik:'Karışık Kelime',cengel:'Çengel Bulmaca',genel:'Genel'};
 const QINTRO={
  bosluk:'Aşağıdaki cümlelerde boş bırakılan yerleri uygun kavramlarla tamamlayınız.',
  dy:'Aşağıdaki ifadelerden doğru olanların başına “D”, yanlış olanların başına “Y” yazınız.',
@@ -367,7 +368,8 @@ const QINTRO={
  acik:'Aşağıdaki soruları kendi cümlelerinizle cevaplayınız.',
  paragraf:'Aşağıdaki paragrafların her birinde üç tane bilgi yanlışı vardır. Yanlış bilgilerin altını çizerek doğrularını paragrafın altındaki satırlara yazınız.',
  esles:'Her soruda sol sütundaki kavramlarla sağ sütundaki doğru karşılıkları eşleştirerek harfleri boş bırakılan yerlere yazınız.',
- karisik:'Harfleri karışık verilen kelimeleri, verilen ipuçlarından yararlanarak doğru sıraya dizip yazınız.'};
+ karisik:'Harfleri karışık verilen kelimeleri, verilen ipuçlarından yararlanarak doğru sıraya dizip yazınız.',
+ cengel:'Aşağıdaki çengel bulmacayı soldan sağa ve yukarıdan aşağıya verilen ipuçlarına göre çözünüz.'};
 const trn=x=>String(x).toLocaleLowerCase('tr').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ş/g,'s').replace(/ü/g,'u').replace(/[^a-z0-9]+/g,' ').trim();
 /* Başlık metninden soru türünü bulur (ör. "4. ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)" → cs4); {{TUR:kod}} de kabul edilir */
 function typeOfHeading(raw){
@@ -384,6 +386,7 @@ function typeOfHeading(raw){
   if(/^paragraf yanlis/.test(n))return 'paragraf';
   if(/^eslestirme/.test(n))return 'esles';
   if(/^karisik kelime/.test(n))return 'karisik';
+  if(/^cengel bulmaca/.test(n))return 'cengel';
   return null;
 }
 const pbOnly=p=>p.localName==='p'&&!pText(p).trim()&&[...p.getElementsByTagNameNS(W,'br')].some(b=>b.getAttributeNS(W,'type')==='page');
