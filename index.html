@@ -146,16 +146,17 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div id="apanel" class="hide">
     <div class="card">
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
-      <div class="field hide" id="amwrap"><label>Ne yüklüyorsunuz?</label><select id="amsel"><option value="t">Sınav şablonu</option><option value="q">Konu soruları (konu konu)</option></select></div>
+      <div class="field hide" id="amwrap"><label>Ne yüklüyorsunuz?</label><select id="amsel"><option value="t">Sınav şablonu</option><option value="q">Konu soruları (konu konu)</option><option value="b">Konu soruları – toplu (tek dosyada tüm türler)</option></select></div>
       <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
       <div class="field hide" id="adwrap"><label>Ders</label><select id="adsel"></select></div>
       <div class="field hide" id="aswrap"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="adnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="asnsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div>
       <label class="drop" for="afile"><div class="ic">📤</div><b id="aname">Word (.docx) dosyası seçin</b><span>Dokunarak dosyayı seçin</span></label>
       <input type="file" id="afile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="hint" id="ahint">Dosyada okul adı, öğretmen adı, tarih gibi yerler <code>{{OKUL_ADI}}</code> <code>{{AD_SOYAD}}</code> <code>{{TARIH}}</code> biçiminde işaretli olmalı (BEP için <code>{{OGRENCI_ADI}}</code>). Büyük harfle yazılacak yerlerde <code>{{OKUL_ADI_BUYUK}}</code> gibi sonuna _BUYUK ekleyin.</p>
-      <div class="hide" id="aktwrap"><div class="field"><label>Soru türü</label><select id="atsel"></select></div><div class="field" style="margin-bottom:0"><label>Hangi konunun soruları?</label><select id="aqsel"></select></div><div id="aqstat" style="margin-top:12px"></div></div>
+      <div class="hide" id="aktwrap"><div class="field" id="atfield"><label>Soru türü</label><select id="atsel"></select></div><div class="field" style="margin-bottom:0"><label>Hangi konunun soruları?</label><select id="aqsel"></select></div><div id="aqstat" style="margin-top:12px"></div></div>
       <p class="hint hide" id="asnhint">Sınav şablonunda <code>{{SORULAR}}</code> (seçilen konuların soruları buraya gelir; tek başına bir satırda olmalı), <code>{{KONULAR}}</code> <code>{{DONEM}}</code> <code>{{SINAV}}</code> <code>{{SINIF}}</code> <code>{{DERS}}</code> yerleri otomatik doldurulur.</p>
       <p class="hint hide" id="asqhint">Bu dosyada yalnızca sorular olmalı (başlık, okul adı vb. olmadan). Soru türünü yukarıdan seçin; dosyada yalnızca o türdeki sorular olmalı. Aynı konu ve türe tekrar yüklerseniz öncekinin üzerine yazılır. Ünite veya alt başlık adını Konular kartında değiştirirseniz o konunun soru dosyasıyla bağlantısı kopar.</p>
+      <p class="hint hide" id="asbhint">Tek Word dosyasında her soru türünü kendi başlığıyla ayırın (<code>BOŞLUK DOLDURMA</code>, <code>DOĞRU – YANLIŞ</code>, <code>KISA CEVAPLI SORULAR</code>, <code>ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)</code>, <code>ÇOKTAN SEÇMELİ SORULAR (5 ŞIKLI)</code>, <code>AÇIK UÇLU SORULAR</code>, <code>PARAGRAF YANLIŞLARI</code>, <code>EŞLEŞTİRME SORULARI</code>, <code>KARIŞIK KELİME SORULARI</code>). Sistem her bölümü bulup seçtiğiniz konunun ilgili soru türüne kaydeder; başlığın kendisi kaydedilmez. <code>CEVAP ANAHTARI</code> başlığından sonrası yok sayılır. Dosyada bulunmayan türlere dokunulmaz, bulunanların üzerine yazılır.</p>
       <p class="hint" id="afound"></p>
       <div class="row"><button class="btn" id="aup" disabled>Yükle</button></div>
       <div class="msg err hide" id="aerr"></div>
@@ -322,12 +323,13 @@ async function fetchQuestionZips(g,d,list,types){
   const zs=[],skip=[],nm=t=>t.split(SEP).pop();
   const has=(t,ty)=>{if(!topicAvail||!topicAvail.has(qkey(t)))return true;const st=topicAvail.get(qkey(t));return st===null||st.has(ty)};
   for(const ty of types){
+    let first=true;
     for(const t of list){
       if(!has(t,ty)){skip.push(nm(t)+' – '+QTN[ty]);continue}
       let b64=null;
       try{const r=await fetch(qbase(g,d,t,ty)+'/dosya.json');b64=r.ok?await r.json():null}catch(e){throw new UserErr('Soru dosyalarına ulaşılamadı. İnternet bağlantınızı kontrol edin.')}
       if(!b64){skip.push(nm(t)+' – '+QTN[ty]);continue}
-      try{zs.push(await JSZip.loadAsync(b64,{base64:true}))}catch(e){throw new UserErr('Şu soru dosyası okunamadı: '+nm(t)+' – '+QTN[ty])}
+      try{const zq=await JSZip.loadAsync(b64,{base64:true});if(!first)await stripIntro(zq,ty);first=false;zs.push(zq)}catch(e){throw new UserErr('Şu soru dosyası okunamadı: '+nm(t)+' – '+QTN[ty])}
     }
   }
   return {zs,skip};
@@ -353,6 +355,89 @@ const QTN=Object.fromEntries(QT.map(x=>[x.id,x.t]));
 const qbase=(g,d,t,ty)=>QDB+'/'+kkey(g,d)+'/'+qkey(t)+(ty&&ty!=='genel'?'/t/'+ty:'');
 let topicList=null,topicAvail=null;
 const selTypes=()=>[...document.querySelectorAll('#tlist input:checked')].map(i=>i.value);
+const QTS={bosluk:'Boşluk Doldurma',dy:'Doğru–Yanlış',kisa:'Kısa Cevaplı',cs4:'Çoktan Seçmeli (4)',cs5:'Çoktan Seçmeli (5)',acik:'Açık Uçlu',paragraf:'Paragraf Yanlışları',esles:'Eşleştirme',karisik:'Karışık Kelime',genel:'Genel'};
+const QINTRO={
+ bosluk:'Aşağıdaki cümlelerde boş bırakılan yerleri uygun kavramlarla tamamlayınız.',
+ dy:'Aşağıdaki ifadelerden doğru olanların başına “D”, yanlış olanların başına “Y” yazınız.',
+ kisa:'Aşağıdaki soruların cevaplarını boş bırakılan yerlere kısaca yazınız.',
+ cs4:'Aşağıdaki soruların doğru cevaplarını işaretleyiniz.',
+ cs5:'Aşağıdaki soruların doğru cevaplarını işaretleyiniz.',
+ acik:'Aşağıdaki soruları kendi cümlelerinizle cevaplayınız.',
+ paragraf:'Aşağıdaki paragrafların her birinde üç tane bilgi yanlışı vardır. Yanlış bilgilerin altını çizerek doğrularını paragrafın altındaki satırlara yazınız.',
+ esles:'Her soruda sol sütundaki kavramlarla sağ sütundaki doğru karşılıkları eşleştirerek harfleri boş bırakılan yerlere yazınız.',
+ karisik:'Harfleri karışık verilen kelimeleri, verilen ipuçlarından yararlanarak doğru sıraya dizip yazınız.'};
+const trn=x=>String(x).toLocaleLowerCase('tr').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ş/g,'s').replace(/ü/g,'u').replace(/[^a-z0-9]+/g,' ').trim();
+/* Başlık metninden soru türünü bulur (ör. "4. ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)" → cs4); {{TUR:kod}} de kabul edilir */
+function typeOfHeading(raw){
+  const txt=String(raw).trim();
+  if(!txt||txt.length>90)return null;
+  const m=txt.match(/^\{\{\s*TUR\s*:\s*([a-z0-9]+)\s*\}\}$/i);
+  if(m){const id=m[1].toLowerCase();return QTN[id]&&id!=='genel'?id:null}
+  const n=trn(txt).replace(/^\d+\s+/,'');
+  if(/^bosluk doldurma/.test(n))return 'bosluk';
+  if(/^dogru yanlis/.test(n))return 'dy';
+  if(/^kisa cevapli/.test(n))return 'kisa';
+  if(/^coktan secmeli/.test(n)){if(/\b4\b|dort/.test(n))return 'cs4';if(/\b5\b|bes/.test(n))return 'cs5';return null}
+  if(/^acik uclu/.test(n))return 'acik';
+  if(/^paragraf yanlis/.test(n))return 'paragraf';
+  if(/^eslestirme/.test(n))return 'esles';
+  if(/^karisik kelime/.test(n))return 'karisik';
+  return null;
+}
+const pbOnly=p=>p.localName==='p'&&!pText(p).trim()&&[...p.getElementsByTagNameNS(W,'br')].some(b=>b.getAttributeNS(W,'type')==='page');
+/* Tek Word dosyasını soru türü bölümlerine ayırır */
+async function splitBulk(buf){
+  const z=await JSZip.loadAsync(buf),xml=await rdPart(z,'word/document.xml');
+  if(!xml)return null;
+  const doc=parse(xml),body=bodyOf(doc),kids=[...body.children].filter(e=>e.localName!=='sectPr');
+  const map=new Map();let cur=null;
+  for(const k of kids){
+    if(k.localName==='p'){
+      const txt=pText(k);
+      if(txt.length<40&&/^cevap anahtar/.test(trn(txt)))break;
+      const ty=typeOfHeading(txt);
+      if(ty){cur=ty;if(!map.has(ty))map.set(ty,[]);continue}
+    }
+    if(cur)map.get(cur).push(k);
+  }
+  const secs=[];
+  for(const [ty,arr] of map){
+    while(arr.length&&pbOnly(arr[arr.length-1]))arr.pop();
+    while(arr.length&&pbOnly(arr[0]))arr.shift();
+    if(!arr.some(e=>e.localName==='tbl'||pText(e).trim()))continue;
+    let count=arr.filter(e=>e.localName==='p'&&/^(\(\s*[.…\s]*\)\s*)?(\d{1,3}\s*[.)]|paragraf\s+\d+)/i.test(pText(e).trim())).length;
+    if(!count)count=arr.filter(e=>e.localName==='tbl').flatMap(t=>[...t.getElementsByTagNameNS(W,'tr')]).filter(r=>{const c=r.getElementsByTagNameNS(W,'tc')[0];return c&&/^\d+$/.test([...c.getElementsByTagNameNS(W,'t')].map(t=>t.textContent).join('').trim())}).length;
+    secs.push({ty,nodes:arr,count});
+  }
+  secs.sort((a,b)=>QT.findIndex(x=>x.id===a.ty)-QT.findIndex(x=>x.id===b.ty));
+  return {z,doc,secs};
+}
+/* Her bölümden, yalnızca o türün sorularını içeren ayrı bir .docx (base64) üretir */
+async function bulkParts(buf){
+  const r=await splitBulk(buf),out=[];
+  if(!r)return out;
+  for(const sec of r.secs){
+    const nd=r.doc.cloneNode(true),b=bodyOf(nd),sect=[...b.children].find(e=>e.localName==='sectPr')||null;
+    [...b.children].forEach(c=>{if(c!==sect)b.removeChild(c)});
+    sec.nodes.forEach(n=>b.insertBefore(nd.importNode(n,true),sect));
+    if(sec.nodes[sec.nodes.length-1].localName==='tbl')b.insertBefore(nd.createElementNS(W,'w:p'),sect);
+    r.z.file('word/document.xml',serDoc(nd));
+    out.push({ty:sec.ty,count:sec.count,b64:await r.z.generateAsync({type:'base64',compression:'DEFLATE'})});
+  }
+  return out;
+}
+/* Aynı türden birden çok konu seçilince, 2. ve sonraki dosyalarda tekrarlayan yönerge satırını kaldırır */
+async function stripIntro(z,ty){
+  try{
+    if(!QINTRO[ty])return;
+    const xml=await rdPart(z,'word/document.xml');if(!xml)return;
+    const doc=parse(xml),body=bodyOf(doc),want=trn(QINTRO[ty]);
+    for(const k of [...body.children].filter(e=>e.localName!=='sectPr').slice(0,2)){
+      if(k.localName==='p'&&trn(pText(k))===want){body.removeChild(k);z.file('word/document.xml',serDoc(doc));return}
+    }
+  }catch(e){}
+}
+const isBulk=()=>$('amsel').value==='b'&&$('asel').value==='sinav-olustur';
 async function partsOf(z){
   const o={};
   for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
@@ -580,7 +665,7 @@ let aFile=null,adminHash=null,authHash=null;
 let akSeq=0;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('belge:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-const asec=()=>{const v=$('asel').value;return v==='sinav-olustur'&&$('amsel').value==='q'?'sinav-sorulari':v};
+const asec=()=>{const v=$('asel').value;return v==='sinav-olustur'&&['q','b'].includes($('amsel').value)?'sinav-sorulari':v};
 $('atsel')&&($('atsel').innerHTML=QT.map(x=>'<option value="'+x.id+'">'+x.t+'</option>').join(''));
 $('asel').innerHTML=Object.entries(SEC).filter(([k,v])=>!v.q).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
 async function status(){
@@ -670,6 +755,11 @@ $('afile').onchange=async e=>{
     $('afound').textContent=SEC[asec()].q?'':'Bulunan alanlar: '+ks.map(label).join(', ');
     if($('asel').value==='gunluk-plan'){const wc=detectWeeks(o['word/document.xml']).length;$('afound').textContent+=wc?' | Hafta sayısı: '+wc:' | ⚠️ Hafta başlığı bulunamadı, bu plan tek dosya olarak inecek.'}
     if(SEC[asec()].sn&&!ks.includes('SORULAR'))$('afound').textContent+=' | ⚠️ {{SORULAR}} yeri bulunamadı; konuların soruları şablona eklenemez.';
+    if(isBulk()){
+      const an=await splitBulk(await f.arrayBuffer());
+      if(!an||!an.secs.length){msg('aerr','Dosyada soru türü başlığı bulunamadı. Her bölüm “BOŞLUK DOLDURMA”, “DOĞRU – YANLIŞ”, “ÇOKTAN SEÇMELİ SORULAR (4 ŞIKLI)” gibi bir başlıkla başlamalı.');return}
+      $('afound').textContent='Bulunan türler: '+an.secs.map(x=>QTS[x.ty]+(x.count?' ('+x.count+')':'')).join(', ');
+    }
     aFile=f;$('aup').disabled=false;
   }catch(err){msg('aerr','Dosya okunamadı; geçerli bir .docx olduğundan emin olun.')}
 };
@@ -677,11 +767,25 @@ $('aup').onclick=async()=>{
   const btn=$('aup');btn.disabled=true;btn.textContent='Yükleniyor…';msg('aerr','');msg('aok','');
   try{
     if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
-    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
+    const bulk=isBulk(),b64=bulk?null:await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
     const sid=asec(),gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
     const meta={ad:aFile.name,tarih:Date.now()};
     if(SEC[sid].q){
       const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
+      if(bulk){
+        const parts=await bulkParts(await aFile.arrayBuffer());
+        if(!parts.length)throw new Error('Dosyada soru türü başlığı bulunamadı.');
+        let n=0;
+        try{
+          for(const p of parts){
+            btn.textContent='Yükleniyor… ('+(++n)+'/'+parts.length+')';
+            const rq=await fetch(qbase(+gg,dd,tp,p.ty)+'.json',{method:'PUT',body:JSON.stringify({meta:{ad:aFile.name+' – '+QTS[p.ty],tarih:Date.now(),konu:tp,tur:p.ty,toplu:true},dosya:p.b64})});
+            if(!rq.ok)throw new Error('izin');
+          }
+        }catch(e2){if(n>1)msg('aok','İlk '+(n-1)+' tür yüklendi, kalanlar yüklenemedi.');refreshAdminKonu();throw e2}
+        msg('aok','✅ '+gg+'. sınıf '+DERS[dd]+' — '+tp+': '+parts.length+' soru türü yüklendi ('+parts.map(p=>QTS[p.ty]).join(', ')+').');refreshAdminKonu();
+        btn.disabled=false;btn.textContent='Yükle';return;
+      }
       const ty=$('atsel').value||'genel';
       meta.konu=tp;meta.tur=ty;
       /* genel: konu düğümüne PATCH (alttaki türler silinmesin); tür: kendi düğümüne PUT */
@@ -702,7 +806,7 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q)};
+$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk())};
 $('amsel').onchange=$('asel').onchange;
 $('asel').onchange();
 $('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
@@ -728,12 +832,13 @@ async function refreshAdminKonu(){
     else sel.appendChild(opt(u.name,u.name));
   });
   if(leaves.includes(keep))sel.value=keep;
-  const metas={};
+  const metas={},bulk=isBulk(),av=bulk?await loadAvail(g,d):null;
   await Promise.all(leaves.map(async t=>{
-    let m=null;try{const r=await fetch(qbase(g,d,t,ty)+'/meta.json');m=r.ok?await r.json():null}catch(e){}
+    if(bulk)return;let m=null;try{const r=await fetch(qbase(g,d,t,ty)+'/meta.json');m=r.ok?await r.json():null}catch(e){}
     metas[t]=m;
   }));
   const row=(key,label,isSub)=>{const m=metas[key];
+    if(bulk){const st=av&&av.get(qkey(key));return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(st&&st.size?'✅ '+[...st].map(x=>esc(QTS[x]||x)).join(', '):'—')+'</b></div>'}
     return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(m&&m.ad?'✅ '+esc(m.ad)+' <button class="del" data-p="'+esc(kkey(g,d)+'/'+qkey(key))+'" data-ty="'+esc(ty)+'" data-t="'+esc(key)+'">Sil</button>':'—')+'</b></div>'};
   const rows=[];
   us.forEach(u=>{
