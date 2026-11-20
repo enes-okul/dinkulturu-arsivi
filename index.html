@@ -328,7 +328,7 @@ async function fetchQuestionZips(g,d,list,types){
     for(const t of list){
       if(!has(t,ty)){skip.push(nm(t)+' – '+QTN[ty]);continue}
       let b64=null;
-      try{const r=await fetch(qbase(g,d,t,ty)+'/dosya.json');b64=r.ok?await r.json():null}catch(e){throw new UserErr('Soru dosyalarına ulaşılamadı. İnternet bağlantınızı kontrol edin.')}
+      try{b64=await getDosya(qbase(g,d,t,ty))}catch(e){throw new UserErr('Soru dosyalarına ulaşılamadı. İnternet bağlantınızı kontrol edin.')}
       if(!b64){skip.push(nm(t)+' – '+QTN[ty]);continue}
       if(seen.has(ty+'|'+b64))continue;seen.add(ty+'|'+b64);
       try{const zq=await JSZip.loadAsync(b64,{base64:true});if(!first)await stripIntro(zq,ty);first=false;zs.push(zq)}catch(e){throw new UserErr('Şu soru dosyası okunamadı: '+nm(t)+' – '+QTN[ty])}
@@ -448,12 +448,34 @@ async function partsOf(z){
   for(const n of Object.keys(z.files)){if(PART.test(n))o[n]=await z.file(n).async('string')}
   return o['word/document.xml']?o:null;
 }
+/* Dosya önbelleği: şablon/soru dosyası bir kez inince cihazda saklanır; sonraki seferlerde yalnızca küçük meta bilgisine bakılır, dosya değişmediyse Firebase'den tekrar indirilmez. */
+const DBC=(()=>{
+  let p=null;
+  const open=()=>p||(p=new Promise((res,rej)=>{try{const q=indexedDB.open('bd_dosya_onbellek',1);q.onupgradeneeded=()=>q.result.createObjectStore('d');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}}));
+  const tx=async(m,f)=>{const d=await open();return new Promise((res,rej)=>{const t=d.transaction('d',m),r=f(t.objectStore('d'));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})};
+  return{get:k=>tx('readonly',s=>s.get(k)).catch(()=>null),set:(k,v)=>tx('readwrite',s=>s.put(v,k)).catch(()=>{}),del:k=>tx('readwrite',s=>s.delete(k)).catch(()=>{})};
+})();
+const memC=new Map();
+async function getDosya(base){
+  let m=null;
+  try{const r=await fetch(base+'/meta.json');if(r.ok)m=await r.json()}
+  catch(e){const c=memC.get(base)||await DBC.get(base);if(c&&c.b64)return c.b64;throw e}
+  const v=m&&m.tarih;
+  if(v){
+    const c=memC.get(base)||await DBC.get(base);
+    if(c&&c.v===v&&c.b64){memC.set(base,c);return c.b64}
+  }
+  const r=await fetch(base+'/dosya.json');
+  const b64=r.ok?await r.json():null;
+  if(b64&&v){const c={v,b64};memC.set(base,c);DBC.set(base,c)}
+  else{memC.delete(base);if(!b64)DBC.del(base)}
+  return b64;
+}
 async function loadTemplate(id,legacy){
   weeks=[];
   try{
-    let r=await fetch(DB+'/'+id+'/dosya.json');
-    let b64=r.ok?await r.json():null;
-    if(!b64&&legacy){r=await fetch(DB+'/'+legacy+'/dosya.json');b64=r.ok?await r.json():null}
+    let b64=await getDosya(DB+'/'+id);
+    if(!b64&&legacy)b64=await getDosya(DB+'/'+legacy);
     if(!b64)return false;
     const z=await JSZip.loadAsync(b64,{base64:true});
     const o=await partsOf(z);
