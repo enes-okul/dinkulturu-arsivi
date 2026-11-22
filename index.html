@@ -171,8 +171,6 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
       <h2 id="kth" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0" role="button" tabindex="0" aria-expanded="false"><span>📚 Konular (ünite başlıkları)</span><span id="kchev" style="font-size:.9rem;transition:transform .2s">▼</span></h2>
       <div id="kbody" class="hide" style="margin-top:12px">
       <p class="hint" style="margin:0 0 12px">Önce ünite adını, altına alt başlıkları başına - koyarak yazın. Sınav oluştururken ve indirirken alt başlıklardan birden fazlası seçilebilir. Alt başlığı olmayan ünite tek başına seçilir.</p>
-      <div class="field"><label>Sınıf</label><select id="kgsel"></select></div>
-      <div class="field"><label>Ders</label><select id="kdsel"></select></div>
       <div class="field"><label>Konular <small>ünite satırı; alt başlıklar - ile</small></label><textarea id="ktxt" rows="9" placeholder="1. Ünite: Kader İnancı&#10;- 1.1 Kader ve Kaza&#10;- 1.2 Evrendeki Düzen&#10;2. Ünite: Namaz&#10;- 2.1 Namazın Önemi"></textarea></div>
       <div class="row"><button class="btn" id="ksave">Konuları kaydet</button></div>
       </div>
@@ -845,11 +843,11 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k||!!s.sn);$('adwrap').classList.toggle('hide',!s.ds||!!s.sn);$('aswrap').classList.add('hide');$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk());if(authHash)status()};
+$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.add('hide');$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk());if(authHash)status()};
 $('amsel').onchange=$('asel').onchange;
 $('asel').onchange();
-$('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu();if(authHash)status()};
-$('adsel').onchange=()=>refreshAdminKonu();
+$('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu();if(authHash){status();loadAdminTopics()}};
+$('adsel').onchange=()=>{refreshAdminKonu();if(authHash)loadAdminTopics()};
 $('atsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
@@ -903,14 +901,11 @@ $('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input:not
   $('tlist').onchange=()=>{store.set('TURLER',selTypes().join(',')||'-');if(topicList)renderTopics(topicList,topicAvail)};
   $('tall').onclick=()=>{const all=[...document.querySelectorAll('#tlist input')],onn=all.some(i=>!i.checked);all.forEach(i=>i.checked=onn);$('tlist').onchange()};
 }
-$('kgsel').innerHTML=gradeOpts();$('kgsel').value=$('aksel').value;fillDers($('kdsel'),$('kgsel').value,$('adsel').value);
 async function loadAdminTopics(){
   msg('kerr','');msg('kok','');$('ktxt').value='';$('ktxt').disabled=true;
-  const l=await loadTopics(+$('kgsel').value,$('kdsel').value);
+  const l=await loadTopics(+$('aksel').value,$('adsel').value);
   $('ktxt').value=l.join('\n');$('ktxt').disabled=false;
 }
-$('kgsel').onchange=()=>{fillDers($('kdsel'),$('kgsel').value,$('kdsel').value);loadAdminTopics()};
-$('kdsel').onchange=loadAdminTopics;
 function setK(open){$('kbody').classList.toggle('hide',!open);$('kth').setAttribute('aria-expanded',open?'true':'false');$('kchev').style.transform=open?'rotate(180deg)':'none'}
 $('kth').onclick=()=>setK($('kbody').classList.contains('hide'));
 $('kth').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('kth').onclick()}};
@@ -925,12 +920,12 @@ $('ksave').onclick=async()=>{
   const list=[];map.forEach((subs,u)=>{list.push(u);subs.forEach(x=>list.push('- '+x))});
   b.disabled=true;
   try{
-    const u=KDB+'/'+kkey(+$('kgsel').value,$('kdsel').value)+'.json';
+    const u=KDB+'/'+kkey(+$('aksel').value,$('adsel').value)+'.json';
     const r=await fetch(u,list.length?{method:'PUT',body:JSON.stringify(list)}:{method:'DELETE'});
     if(!r.ok)throw 0;
     $('ktxt').value=list.join('\n');
     refreshAdminKonu();
-    msg('kok','✅ '+$('kgsel').value+'. sınıf '+DERS[$('kdsel').value]+' için '+leavesCount(list)+' konu kaydedildi.');setK(false);
+    msg('kok','✅ '+$('aksel').value+'. sınıf '+DERS[$('adsel').value]+' için '+leavesCount(list)+' konu kaydedildi.');setK(false);
   }catch(e){msg('kerr','Kaydedilemedi. Firebase kuralları bu alana yazmaya izin vermiyor olabilir.')}
   b.disabled=false;
 };
