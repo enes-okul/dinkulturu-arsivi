@@ -57,6 +57,9 @@ code{background:var(--violet-s);color:var(--violet-d);padding:1px 6px;border-rad
 .msg.err{background:#FFE9E6;color:#B3261E}.msg.ok{background:#E4F8F1;color:#15744A}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .hide{display:none}
+.tabs{display:flex;gap:6px;background:var(--violet-s);border-radius:14px;padding:5px;margin-bottom:14px}
+.tabs a{flex:1;text-align:center;padding:10px 8px;border-radius:10px;text-decoration:none;font-weight:800;font-size:.92rem;color:var(--violet-d)}
+.tabs a.on{background:#fff;box-shadow:0 2px 8px rgba(108,99,245,.18)}
 footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;line-height:1.6}
 
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;background:#fff;border-bottom:1px solid var(--line);padding:10px 14px}
@@ -123,6 +126,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
   </section>
   <section id="tool" class="hide">
     <div class="phead"><h1 id="ptitle"></h1><p id="pdesc"></p></div>
+    <div class="tabs hide" id="btabs"><a href="#bep-plan" data-t="bep-plan">Yıllık Plan</a><a href="#bep-gunluk" data-t="bep-gunluk">Günlük Plan</a></div>
     <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div><div class="field hide" id="dwrap" style="margin:12px 0 0"><label>Ders</label><select id="dsel"></select></div><div class="field hide" id="swrap" style="margin:12px 0 0"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="dnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="snsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div></div>
 
   <div class="card hide" id="tcard"><div class="khead"><h2>🧩 Soru türleri</h2><button class="btn ghost" id="tall" type="button" style="padding:7px 12px;font-size:.8rem">Tümünü seç</button></div><p class="hint" style="margin:0 0 4px">Sınavda yer alacak soru türlerini işaretleyin. Sorular aşağıdaki tür sırasıyla dizilir; seçiminiz bu cihazda hatırlanır.</p><div id="tlist"></div></div>
@@ -146,7 +150,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div id="apanel" class="hide">
     <div class="card">
       <div class="field"><label>Hangi bölüm için?</label><select id="asel"></select></div>
-      <div class="field hide" id="amwrap"><label>Ne yüklüyorsunuz?</label><select id="amsel"><option value="t">Sınav şablonu</option><option value="q">Konu soruları (konu konu)</option><option value="b">Konu soruları – toplu (tek dosyada tüm türler)</option></select></div>
+      <div class="field hide" id="amwrap"><label>Ne yüklüyorsunuz?</label><select id="amsel"><option value="t">Sınav şablonu</option><option value="b">Etkinlik ekle</option></select></div>
       <div class="field" id="akwrap"><label>Sınıf</label><select id="aksel"></select></div>
       <div class="field hide" id="adwrap"><label>Ders</label><select id="adsel"></select></div>
       <div class="field hide" id="aswrap"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="adnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="asnsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div>
@@ -257,8 +261,8 @@ const gradeOpts=()=>KAD.map(n=>'<option value="'+n+'">'+n+'. Sınıf</option>').
 const DERS={dkab:'Din Kültürü ve Ahlak Bilgisi',tdb1:'Temel Dini Bilgiler 1',tdb2:'Temel Dini Bilgiler 2',kuran:"Kur'an-ı Kerim",siyer:'Peygamberimizin Hayatı',arapca:'Arapça',ayy1:'Ahlak ve Yurttaşlık Eğitimi (I)',ayy2:'Ahlak ve Yurttaşlık Eğitimi (II)'};
 const dersIds=g=>g>=9?['dkab','tdb1','tdb2','kuran','siyer','arapca']:g>=5?['dkab','tdb1','tdb2','kuran','siyer','arapca','ayy1','ayy2']:['dkab'];
 const dersOpts=g=>dersIds(g).map(d=>'<option value="'+d+'">'+DERS[d]+'</option>').join('');
-const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
-const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:'')+(SEC[id].sn?' — '+(dn||1)+'. Dönem '+(sn||1)+'. Sınav':'');
+const tid=(id,g,d,dn,sn)=>SEC[id]&&SEC[id].sn?id+'-ortak':SEC[id]&&SEC[id].k?id+'-'+g+(SEC[id].ds&&d&&d!=='dkab'?'-'+d:'')+(SEC[id].sn?'-d'+(dn||1)+'-s'+(sn||1):''):id;
+const tname=(id,g,d,dn,sn)=>SEC[id].t+(SEC[id].sn?'':(SEC[id].k?' — '+g+'. Sınıf':'')+(SEC[id].ds&&d?' — '+DERS[d]:''))+(SEC[id].sn?' (ortak şablon)':'');
 const AUTO=['DONEM','SINAV','KONULAR','SINIF','DERS','SORULAR'];
 class UserErr extends Error{}
 const kkey=(g,d)=>g+(d&&d!=='dkab'?'-'+d:'');
@@ -674,7 +678,7 @@ $('go').onclick=async()=>{
       if(all.length&&!types.length)throw new UserErr('Lütfen en az bir soru türü seçin.');
       if(all.length&&!ena.length)throw new UserErr('Bu ders için henüz soru dosyası yüklenmemiş.');
       if(ena.length&&!sel.length)throw new UserErr('Lütfen en az bir konu seçin.');
-      vals.KONULAR=chk.map(i=>i.dataset.l||i.value).join(', ');vals.DONEM=$('dnsel').value;vals.SINAV=$('snsel').value;vals.SINIF=$('ksel').value;vals.DERS=DERS[$('dsel').value]||'';
+      vals.KONULAR=chk.map(i=>i.dataset.l||i.value).join(', ');vals.DONEM='';vals.SINAV='';vals.SINIF=$('ksel').value;vals.DERS=DERS[$('dsel').value]||'';
       if(sel.length){
         b.textContent='Sorular alınıyor…';
         const r=await fetchQuestionZips(+$('ksel').value,$('dsel').value,sel,types);
@@ -684,7 +688,7 @@ $('go').onclick=async()=>{
       }
     }
     const wk=$('wk')?+$('wk').value:0;
-    save(await build(vals,wk,qz),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(SEC[cur].sn?'_'+$('dnsel').value+'-donem_'+$('snsel').value+'-sinav':'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
+    save(await build(vals,wk,qz),cur+(SEC[cur].k?'_'+$('ksel').value+'-sinif':'')+(SEC[cur].ds?'_'+$('dsel').value:'')+(wk?'_'+wk+'-hafta':'')+'_hazir.docx');
     msg('ok','✅ Belge hazırlandı ve indirildi.'+note);
   }catch(e){msg('err',e instanceof UserErr?e.message:'Belge hazırlanırken bir hata oluştu.')}
   b.disabled=false;b.textContent='⬇ Word olarak indir';
@@ -692,7 +696,7 @@ $('go').onclick=async()=>{
 
 const nav=$('drawer');
 const navA=(k,v,sub)=>'<a href="#'+k+'" data-id="'+k+'"'+(sub?' class="sub"':'')+'><span>'+v.i+'</span>'+(sub||v.t)+'</a>';
-nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a&&k!=='bep-gunluk').map(([k,v])=>k==='bep-plan'?'<div class="dgrp"><span>🧩</span>BEP Planı</div>'+navA('bep-plan',v,'Yıllık Plan')+navA('bep-gunluk',SEC['bep-gunluk'],'Günlük Plan'):navA(k,v)).join(''));
+nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a&&k!=='bep-gunluk').map(([k,v])=>k==='bep-plan'?navA('bep-plan',v,'BEP Planı'):navA(k,v)).join(''));
 nav.insertAdjacentHTML('beforeend','<a href="#dosya-yukle" data-id="dosya-yukle" style="margin-top:10px;border-top:1px solid var(--line);border-radius:0 0 12px 12px;padding-top:16px"><span>📤</span>Dosya Yükle</a>');
 const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
@@ -713,18 +717,7 @@ async function status(){
   try{const r=await fetch(DB+'.json?shallow=true');const o=r.ok?await r.json():null;if(o&&typeof o==='object')sk=Object.keys(o)}catch(e){}
   Object.entries(SEC).forEach(([k,v])=>{
     if(v.q)return;
-    if(v.sn&&sk){
-      sk.filter(x=>x===k||x.startsWith(k+'-')).sort().forEach(x=>{
-        const m=x.match(SNV);
-        items.push({id:x,legacy:null,t:m?v.i+' '+v.t+' — '+m[2]+'. Sınıf — '+DERS[m[3]||'dkab']+' — '+m[4]+'. Dönem '+m[5]+'. Sınav':v.i+' '+v.t+' (eski şablon)'});
-      });
-      if(!items.some(i=>i.id.startsWith(k)))items.push({id:k+'-x',legacy:null,t:v.i+' '+v.t+' — henüz şablon yok'});
-      return;
-    }
-    if(v.sn){
-      KAD.forEach(g=>dersIds(g).forEach(d=>[1,2].forEach(dn=>[1,2,3].forEach(sn=>items.push({id:tid(k,g,d,dn,sn),legacy:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]+' — '+dn+'. Dönem '+sn+'. Sınav'})))));
-      return;
-    }
+    if(v.sn){items.push({id:tid(k),legacy:null,t:v.i+' '+v.t+' — ortak şablon'});return}
     if(v.k&&v.ds)KAD.forEach(g=>dersIds(g).forEach(d=>items.push({id:tid(k,g,d),legacy:g===6&&d==='dkab'?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]})));
     else if(v.k)KAD.forEach(g=>items.push({id:tid(k,g),legacy:g===6?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf'}));
     else items.push({id:k,legacy:null,t:v.i+' '+v.t});
@@ -807,7 +800,7 @@ $('aup').onclick=async()=>{
   try{
     if(!authHash)throw new Error('Önce yönetici şifresiyle giriş yapın.');
     const bulk=isBulk(),b64=bulk?null:await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(aFile)});
-    const sid=asec(),gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'');
+    const sid=asec(),gg=$('aksel').value,dd=SEC[sid].ds?$('adsel').value:'',id=tid(sid,gg,dd,'','');
     const meta={ad:aFile.name,tarih:Date.now()};
     if(SEC[sid].q){
       const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
@@ -838,7 +831,7 @@ $('aup').onclick=async()=>{
     }
     const r=await fetch(DB+'/'+id+'.json',{method:'PUT',body:JSON.stringify({meta,dosya:b64})});
     if(!r.ok)throw new Error('izin');
-    msg('aok','✅ '+tname(sid,gg,dd,SEC[sid].sn?$('adnsel').value:'',SEC[sid].sn?$('asnsel').value:'')+' şablonu yüklendi'+(meta.konular?' ('+meta.konular.length+' konu).':'.'));status();
+    msg('aok','✅ '+tname(sid,gg,dd,'','')+' şablonu yüklendi'+(meta.konular?' ('+meta.konular.length+' konu).':'.'));status();
   }catch(e){
     msg('aerr',e.message==='izin'?'Yükleme izni verilmedi. Firebase veritabanı kuralları bu alana yazmaya izin vermiyor olabilir.':(e.message&&e.message.length<60?e.message:'Yükleme başarısız. İnternet bağlantınızı kontrol edip tekrar deneyin.'));
   }
@@ -848,7 +841,7 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k);$('adwrap').classList.toggle('hide',!s.ds);$('aswrap').classList.toggle('hide',!s.sn);$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk())};
+$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k||!!s.sn);$('adwrap').classList.toggle('hide',!s.ds||!!s.sn);$('aswrap').classList.add('hide');$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk())};
 $('amsel').onchange=$('asel').onchange;
 $('asel').onchange();
 $('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
@@ -856,9 +849,6 @@ $('adsel').onchange=()=>refreshAdminKonu();
 $('atsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
-{const m=new Date().getMonth();const sv=store.get('DONEM');$('dnsel').value=sv==='1'||sv==='2'?sv:(m>=8||m===0?'1':'2')}
-$('dnsel').onchange=()=>{store.set('DONEM',$('dnsel').value);openSec(cur,SEC[cur])};
-$('snsel').onchange=()=>openSec(cur,SEC[cur]);
 function updAll(){const o=$('aqsel').selectedOptions[0],has=!!(o&&o.parentNode.tagName==='OPTGROUP');$('aallw').classList.toggle('hide',!has);if(!has)$('aall').checked=false}
 $('aqsel').addEventListener('change',updAll);
 async function refreshAdminKonu(){
@@ -946,24 +936,27 @@ async function loadMeta(id,legacy){
 }
 async function openSec(id,sec){
   const my=++seq;msg('err','');msg('ok','');zip=null;$('go').disabled=true;
-  $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.toggle('hide',!sec.sn);
-  const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn=sec.sn?$('dnsel').value:'',sn=sec.sn?$('snsel').value:'';
+  $('kwrap').classList.toggle('hide',!sec.k);$('dwrap').classList.toggle('hide',!sec.ds);$('swrap').classList.add('hide');
+  const g=sec.k?+$('ksel').value:0,d=sec.ds?$('dsel').value:'',dn='',sn='';
   $('kcard').classList.toggle('hide',!sec.sn);$('tcard').classList.toggle('hide',!sec.sn);
   if(sec.sn){$('klist').innerHTML='<p class="hint">Konular yükleniyor…</p>';$('kall').classList.add('hide');Promise.all([loadTopics(g,d),loadAvail(g,d)]).then(([l,av])=>{if(my===seq)renderTopics(l,av)})}
   $('fields').innerHTML='<p class="hint">Şablon yükleniyor…</p>';
-  const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&(!sec.sn||(dn==='1'&&sn==='1'))?id:null);
+  const ok=await loadTemplate(tid(id,g,d,dn,sn),sec.k&&g===6&&(!sec.ds||d==='dkab')&&!sec.sn?id:null);
   if(my!==seq)return;
-  if(!ok){$('fields').innerHTML='';if(sec.sn){srcs={};renderForm(sec)}msg('err',sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+(sec.sn?' '+dn+'. dönem '+sn+'. sınav':'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
+  if(!ok){$('fields').innerHTML='';if(sec.sn){srcs={};renderForm(sec)}msg('err',sec.sn?'Etkinlik şablonu henüz yüklenmedi. Dosya Yükle ekranından Sınav şablonu olarak ekleyin.':sec.k?g+'. sınıf'+(sec.ds?' '+DERS[d]:'')+' için şablon henüz yüklenmedi.':'Bu bölümün şablonu henüz yüklenmedi.');return}
   renderForm(sec);$('go').disabled=false;
 }
 function route(){
   const id=location.hash.slice(1),sec=SEC[id]&&!SEC[id].a?SEC[id]:undefined;
   const adm=id==='dosya-yukle';
   $('home').classList.toggle('hide',!!sec||adm);$('tool').classList.toggle('hide',!sec);$('admin').classList.toggle('hide',!adm);
-  nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===((sec||adm)?id:'home')));
+  const navId=id==='bep-gunluk'?'bep-plan':id;
+  nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.id===((sec||adm)?navId:'home')));
+  const isBep=id==='bep-plan'||id==='bep-gunluk';$('btabs').classList.toggle('hide',!isBep);
+  $('btabs').querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.t===id));
   if(!adm){authHash=null;$('astat').innerHTML='';$('apanel').classList.add('hide');$('agate').classList.remove('hide')}
   if(adm)openAdmin();
-  if(sec){cur=id;$('ptitle').textContent=sec.i+' '+sec.t;$('pdesc').textContent=sec.d;openSec(id,sec)}
+  if(sec){cur=id;$('ptitle').textContent=isBep?'🧩 BEP Planı':sec.i+' '+sec.t;$('pdesc').textContent=sec.d;openSec(id,sec)}
   menu(false);window.scrollTo(0,0);
 }
 addEventListener('hashchange',route);route();
