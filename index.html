@@ -58,6 +58,7 @@ code{background:var(--violet-s);color:var(--violet-d);padding:1px 6px;border-rad
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .hide{display:none}
 .tabs{display:flex;gap:6px;background:var(--violet-s);border-radius:14px;padding:5px;margin-bottom:14px}
+.tabs.hide{display:none}
 .tabs a{flex:1;text-align:center;padding:10px 8px;border-radius:10px;text-decoration:none;font-weight:800;font-size:.92rem;color:var(--violet-d)}
 .tabs a.on{background:#fff;box-shadow:0 2px 8px rgba(108,99,245,.18)}
 footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;line-height:1.6}
@@ -806,7 +807,7 @@ $('aup').onclick=async()=>{
     const meta={ad:aFile.name,tarih:Date.now()};
     if(SEC[sid].q){
       const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
-      const og=$('aqsel').selectedOptions[0]&&$('aqsel').selectedOptions[0].parentNode,targets=$('aall').checked&&og&&og.tagName==='OPTGROUP'?[...og.children].map(o=>o.value):[tp];
+      const og=$('aqsel').selectedOptions[0]&&$('aqsel').selectedOptions[0].parentNode,so=$('aqsel').selectedOptions[0],isU=!!(so&&so.dataset.unit),targets=(isU||$('aall').checked)&&og&&og.tagName==='OPTGROUP'?[...og.children].filter(o=>!o.dataset.unit).map(o=>o.value):[tp];
       const tl=targets.length>1?og.label+' ('+targets.length+' alt başlık)':tp;
       if(bulk){
         const parts=await bulkParts(await aFile.arrayBuffer());
@@ -851,7 +852,7 @@ $('adsel').onchange=()=>{refreshAdminKonu();if(authHash)loadAdminTopics()};
 $('atsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
-function updAll(){const o=$('aqsel').selectedOptions[0],has=!!(o&&o.parentNode.tagName==='OPTGROUP');$('aallw').classList.toggle('hide',!has);if(!has)$('aall').checked=false}
+function updAll(){const o=$('aqsel').selectedOptions[0],has=!!(o&&o.parentNode.tagName==='OPTGROUP'&&!o.dataset.unit);$('aallw').classList.toggle('hide',!has);if(!has)$('aall').checked=false}
 $('aqsel').addEventListener('change',updAll);
 async function refreshAdminKonu(){
   const q=SEC[asec()].q;$('aktwrap').classList.toggle('hide',!q);
@@ -864,10 +865,10 @@ async function refreshAdminKonu(){
   if(!us.length){sel.innerHTML='<option value="">Önce Konular kartından konu ekleyin</option>';return}
   const leaves=[],opt=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;leaves.push(v);return o};
   us.forEach(u=>{
-    if(u.subs.length){const og=document.createElement('optgroup');og.label=u.name;u.subs.forEach(x=>og.appendChild(opt(x.key,x.label)));sel.appendChild(og)}
+    if(u.subs.length){const og=document.createElement('optgroup');og.label=u.name;const uo=document.createElement('option');uo.value='U§'+u.name;uo.dataset.unit='1';uo.textContent='★ Tüm ünite (bütün alt başlıklar)';og.appendChild(uo);u.subs.forEach(x=>og.appendChild(opt(x.key,x.label)));sel.appendChild(og)}
     else sel.appendChild(opt(u.name,u.name));
   });
-  if(leaves.includes(keep))sel.value=keep;
+  if([...sel.options].some(o=>o.value===keep))sel.value=keep;
   updAll();
   const metas={},bulk=isBulk(),av=bulk?await loadAvail(g,d):null;
   await Promise.all(leaves.map(async t=>{
@@ -875,7 +876,7 @@ async function refreshAdminKonu(){
     metas[t]=m;
   }));
   const row=(key,label,isSub)=>{const m=metas[key];
-    if(bulk){const st=av&&av.get(qkey(key));return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(st&&st.size?'✅ '+[...st].map(x=>esc(QTS[x]||x)).join(', '):'—')+'</b></div>'}
+    if(bulk){const st=av&&av.get(qkey(key));const dp=esc(kkey(g,d)+'/'+qkey(key));return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(st&&st.size?[...st].map(x=>'<div>✅ '+esc(QTS[x]||x)+' <button class="del" data-p="'+dp+'" data-ty="'+esc(x)+'" data-t="'+esc(key)+'">Sil</button></div>').join('')+'<div><button class="del" data-p="'+dp+'" data-ty="*" data-t="'+esc(key)+'">Tümünü sil</button></div>':'—')+'</b></div>'}
     return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(m&&m.ad?'✅ '+esc(m.ad)+' <button class="del" data-p="'+esc(kkey(g,d)+'/'+qkey(key))+'" data-ty="'+esc(ty)+'" data-t="'+esc(key)+'">Sil</button>':'—')+'</b></div>'};
   const rows=[];
   us.forEach(u=>{
@@ -888,9 +889,9 @@ async function refreshAdminKonu(){
 $('aqstat').onclick=async e=>{
   const b=e.target.closest('.del');if(!b||!authHash)return;
   const ty=b.dataset.ty||'genel';
-  if(!confirm(b.dataset.t+' — '+QTN[ty]+' soru dosyası silinsin mi?'))return;
+  if(!confirm(b.dataset.t+' — '+(ty==='*'?'tüm soru dosyaları':QTN[ty]+' soru dosyası')+' silinsin mi?'))return;
   b.disabled=true;msg('aerr','');msg('aok','');
-  try{const us=ty==='genel'?[b.dataset.p+'/meta',b.dataset.p+'/dosya']:[b.dataset.p+'/t/'+ty];for(const u of us){const r=await fetch(QDB+'/'+u+'.json',{method:'DELETE'});if(!r.ok)throw 0}msg('aok','🗑️ '+QTN[ty]+' soru dosyası silindi.')}
+  try{const us=ty==='*'?[b.dataset.p]:ty==='genel'?[b.dataset.p+'/meta',b.dataset.p+'/dosya']:[b.dataset.p+'/t/'+ty];for(const u of us){const r=await fetch(QDB+'/'+u+'.json',{method:'DELETE'});if(!r.ok)throw 0}msg('aok','🗑️ '+(ty==='*'?'Tüm soru dosyaları':QTN[ty]+' soru dosyası')+' silindi.')}
   catch(err){msg('aerr','Silinemedi. Firebase kuralları silmeye izin vermiyor olabilir.');b.disabled=false;return}
   refreshAdminKonu();
 };
