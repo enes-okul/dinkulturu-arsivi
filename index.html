@@ -109,6 +109,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .igbtn{display:inline-flex;margin-bottom:18px;align-items:center;gap:10px;color:#fff;font-family:'Manrope',sans-serif;font-weight:800;font-size:.95rem;padding:12px 20px;border-radius:14px;background:linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)}
 .igbtn i{display:inline-flex;width:22px;height:22px}
 #ahint,#asnhint,#asqhint,#asbhint{display:none!important}
+#tlist .chk{display:flex;align-items:center}#tlist .ord{margin-left:auto;background:var(--violet-s);color:var(--violet-d);border-radius:999px;min-width:26px;text-align:center;font-weight:800;font-size:.82rem;padding:2px 8px}#tlist .ord:empty{display:none}
 </style>
 </head>
 <body>
@@ -131,7 +132,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
     <div class="tabs hide" id="btabs"><a href="#bep-plan" data-t="bep-plan">Yıllık Plan</a><a href="#bep-gunluk" data-t="bep-gunluk">Günlük Plan</a></div>
     <div class="card hide" id="kwrap"><div class="field" style="margin:0"><label>Sınıf</label><select id="ksel"></select></div><div class="field hide" id="dwrap" style="margin:12px 0 0"><label>Ders</label><select id="dsel"></select></div><div class="field hide" id="swrap" style="margin:12px 0 0"><label>Dönem ve sınav</label><div style="display:flex;gap:10px"><select id="dnsel"><option value="1">1. Dönem</option><option value="2">2. Dönem</option></select><select id="snsel"><option value="1">1. Sınav</option><option value="2">2. Sınav</option><option value="3">3. Sınav</option></select></div></div></div>
 
-  <div class="card hide" id="tcard"><div class="khead"><h2>🧩 Soru türleri</h2><button class="btn ghost" id="tall" type="button" style="padding:7px 12px;font-size:.8rem">Tümünü seç</button></div><p class="hint" style="margin:0 0 4px">Sınavda yer alacak soru türlerini işaretleyin. Sorular aşağıdaki tür sırasıyla dizilir; seçiminiz bu cihazda hatırlanır.</p><div id="tlist"></div></div>
+  <div class="card hide" id="tcard"><div class="khead"><h2>🧩 Soru türleri</h2><button class="btn ghost" id="tall" type="button" style="padding:7px 12px;font-size:.8rem">Tümünü seç</button></div><p class="hint" style="margin:0 0 4px">Sınavda yer alacak soru türlerini işaretleyin. Sorular işaretlediğiniz sırayla dizilir: önce hangi türü işaretlerseniz belgede o başta gelir. Seçiminiz ve sıranız bu cihazda hatırlanır.</p><div id="tlist"></div></div>
 
   <div class="card hide" id="kcard"><div class="khead"><h2>📚 Konular</h2><button class="btn ghost" id="kall" type="button" style="padding:7px 12px;font-size:.8rem">Tümünü seç</button></div><p class="hint" style="margin:0 0 4px">Sınavda yer alacak ünite alt başlıklarını işaretleyin (birden fazla seçebilirsiniz; ünite başlığını işaretlerseniz tüm alt başlıkları seçilir).</p><div id="klist"></div></div>
 
@@ -361,7 +362,8 @@ const QTN=Object.fromEntries(QT.map(x=>[x.id,x.t]));
 /* 'genel' eski konum (konu/dosya); diğer türler konu/t/<tür>/dosya */
 const qbase=(g,d,t,ty)=>QDB+'/'+kkey(g,d)+'/'+qkey(t)+(ty&&ty!=='genel'?'/t/'+ty:'');
 let topicList=null,topicAvail=null;
-const selTypes=()=>[...document.querySelectorAll('#tlist input:checked')].map(i=>i.value);
+let tOrder=[];
+const selTypes=()=>tOrder.filter(id=>{const i=document.querySelector('#tlist input[value="'+id+'"]');return i&&i.checked});
 const QTS={bosluk:'Boşluk Doldurma',dy:'Doğru–Yanlış',kisa:'Kısa Cevaplı',cs4:'Çoktan Seçmeli (4)',cs5:'Çoktan Seçmeli (5)',acik:'Açık Uçlu',paragraf:'Paragraf Yanlışları',esles:'Eşleştirme',karisik:'Karışık Kelime',cengel:'Çengel Bulmaca',genel:'Genel'};
 const QINTRO={
  bosluk:'Aşağıdaki cümlelerde boş bırakılan yerleri uygun kavramlarla tamamlayınız.',
@@ -904,10 +906,16 @@ $('aqstat').onclick=async e=>{
 };
 $('kall').onclick=()=>{const all=[...document.querySelectorAll('#klist input:not(:disabled):not(.uall)')],on=all.some(i=>!i.checked);all.forEach(i=>{i.checked=on;i.dispatchEvent(new Event('change'))});$('kall').textContent=on?'Seçimi temizle':'Tümünü seç'};
 {
-  const sv=store.get('TURLER'),on=sv?sv.split(','):QT.map(x=>x.id);
-  $('tlist').innerHTML=QT.map(x=>'<label class="chk"><input type="checkbox" value="'+x.id+'"'+(on.includes(x.id)?' checked':'')+'>'+x.t+'</label>').join('');
-  $('tlist').onchange=()=>{store.set('TURLER',selTypes().join(',')||'-');if(topicList)renderTopics(topicList,topicAvail)};
-  $('tall').onclick=()=>{const all=[...document.querySelectorAll('#tlist input')],onn=all.some(i=>!i.checked);all.forEach(i=>i.checked=onn);$('tlist').onchange()};
+  const sv=store.get('TURLER'),on=sv==='-'?[]:(sv?sv.split(',').filter(x=>QTN[x]):QT.map(x=>x.id));
+  tOrder=[...on];
+  $('tlist').innerHTML=QT.map(x=>'<label class="chk"><input type="checkbox" value="'+x.id+'"'+(on.includes(x.id)?' checked':'')+'>'+x.t+'<b class="ord"></b></label>').join('');
+  const paintOrder=()=>document.querySelectorAll('#tlist label').forEach(l=>{const i=l.querySelector('input'),n=tOrder.indexOf(i.value);l.querySelector('.ord').textContent=i.checked&&n>=0?String(n+1):''});
+  $('tlist').onchange=e=>{
+    const i=e&&e.target&&e.target.matches&&e.target.matches('input')?e.target:null;
+    if(i){tOrder=tOrder.filter(x=>x!==i.value);if(i.checked)tOrder.push(i.value)}
+    paintOrder();store.set('TURLER',selTypes().join(',')||'-');if(topicList)renderTopics(topicList,topicAvail)};
+  $('tall').onclick=()=>{const all=[...document.querySelectorAll('#tlist input')],onn=all.some(i=>!i.checked),prev=selTypes();all.forEach(i=>i.checked=onn);tOrder=onn?[...prev,...QT.map(x=>x.id).filter(id=>!prev.includes(id))]:[];$('tlist').onchange()};
+  paintOrder();
 }
 async function loadAdminTopics(){
   msg('kerr','');msg('kok','');$('ktxt').value='';$('ktxt').disabled=true;
