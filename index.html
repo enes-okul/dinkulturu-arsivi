@@ -696,7 +696,7 @@ $('go').onclick=async()=>{
 
 const nav=$('drawer');
 const navA=(k,v,sub)=>'<a href="#'+k+'" data-id="'+k+'"'+(sub?' class="sub"':'')+'><span>'+v.i+'</span>'+(sub||v.t)+'</a>';
-nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a&&k!=='bep-gunluk').map(([k,v])=>k==='bep-plan'?navA('bep-plan',v,'BEP Planı'):navA(k,v)).join(''));
+nav.insertAdjacentHTML('beforeend','<a href="#ana-sayfa" data-id="home"><span>🏠</span>Ana Sayfa</a>'+Object.entries(SEC).filter(([k,v])=>!v.a&&k!=='bep-gunluk').map(([k,v])=>k==='bep-plan'?navA('bep-plan',{...v,t:'BEP Planı'}):navA(k,v)).join(''));
 nav.insertAdjacentHTML('beforeend','<a href="#dosya-yukle" data-id="dosya-yukle" style="margin-top:10px;border-top:1px solid var(--line);border-radius:0 0 12px 12px;padding-top:16px"><span>📤</span>Dosya Yükle</a>');
 const menu=o=>{nav.classList.toggle('open',o);$('ov').classList.toggle('open',o)};
 $('menuBtn').onclick=()=>menu(!nav.classList.contains('open'));
