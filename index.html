@@ -107,6 +107,7 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:24px;lin
 .igsub{margin:6px auto 0;max-width:300px;color:var(--muted);font-size:.85rem;font-weight:600;line-height:1.5}
 .igbtn{display:inline-flex;margin-bottom:18px;align-items:center;gap:10px;color:#fff;font-family:'Manrope',sans-serif;font-weight:800;font-size:.95rem;padding:12px 20px;border-radius:14px;background:linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)}
 .igbtn i{display:inline-flex;width:22px;height:22px}
+#ahint,#asnhint,#asqhint,#asbhint{display:none!important}
 </style>
 </head>
 <body>
@@ -711,15 +712,17 @@ async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncod
 const asec=()=>{const v=$('asel').value;return v==='sinav-olustur'&&['q','b'].includes($('amsel').value)?'sinav-sorulari':v};
 $('atsel')&&($('atsel').innerHTML=QT.map(x=>'<option value="'+x.id+'">'+x.t+'</option>').join(''));
 $('asel').innerHTML=Object.entries(SEC).filter(([k,v])=>!v.q).map(([k,v])=>'<option value="'+k+'">'+v.t+'</option>').join('');
+let stSeq=0;
 async function status(){
-  const items=[];
+  const my=++stSeq,items=[];
   let sk=null;
   try{const r=await fetch(DB+'.json?shallow=true');const o=r.ok?await r.json():null;if(o&&typeof o==='object')sk=Object.keys(o)}catch(e){}
   Object.entries(SEC).forEach(([k,v])=>{
     if(v.q)return;
+    if(k!==$('asel').value)return;
     if(v.sn){items.push({id:tid(k),legacy:null,t:v.i+' '+v.t+' — ortak şablon'});return}
-    if(v.k&&v.ds)KAD.forEach(g=>dersIds(g).forEach(d=>items.push({id:tid(k,g,d),legacy:g===6&&d==='dkab'?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]})));
-    else if(v.k)KAD.forEach(g=>items.push({id:tid(k,g),legacy:g===6?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf'}));
+    if(v.k&&v.ds)KAD.filter(g=>g===+$('aksel').value).forEach(g=>dersIds(g).forEach(d=>items.push({id:tid(k,g,d),legacy:g===6&&d==='dkab'?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf — '+DERS[d]})));
+    else if(v.k)KAD.filter(g=>g===+$('aksel').value).forEach(g=>items.push({id:tid(k,g),legacy:g===6?k:null,t:v.i+' '+v.t+' — '+g+'. Sınıf'}));
     else items.push({id:k,legacy:null,t:v.i+' '+v.t});
   });
   const rows=await Promise.all(items.map(async it=>{
@@ -732,6 +735,7 @@ async function status(){
     }catch(e){t='?'}
     return '<div class="srow"><span>'+it.t+'</span><b>'+t+(pid?' <button class="del" data-id="'+esc(pid)+'" data-t="'+esc(it.t)+'">Sil</button>':'')+'</b></div>';
   }));
+  if(my!==stSeq)return;
   $('astat').innerHTML=rows.join('');
 }
 async function openAdmin(){
@@ -841,10 +845,10 @@ $('ksel').innerHTML=gradeOpts();$('aksel').innerHTML=gradeOpts();
 {const sv=store.get('KADEME');$('ksel').value=KAD.includes(+sv)?sv:'6';$('aksel').value=$('ksel').value}
 const fillDers=(sel,g,keep)=>{sel.innerHTML=dersOpts(+g);if(dersIds(+g).includes(keep))sel.value=keep};
 fillDers($('dsel'),$('ksel').value,store.get('DERS'));fillDers($('adsel'),$('aksel').value,$('dsel').value);
-$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k||!!s.sn);$('adwrap').classList.toggle('hide',!s.ds||!!s.sn);$('aswrap').classList.add('hide');$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk())};
+$('asel').onchange=()=>{refreshAdminKonu();$('amwrap').classList.toggle('hide',$('asel').value!=='sinav-olustur');$('ahint').classList.toggle('hide',!!SEC[asec()].q);const s=SEC[asec()];$('akwrap').classList.toggle('hide',!s.k||!!s.sn);$('adwrap').classList.toggle('hide',!s.ds||!!s.sn);$('aswrap').classList.add('hide');$('asnhint').classList.toggle('hide',!s.sn);$('asqhint').classList.toggle('hide',!s.q||isBulk());$('asbhint').classList.toggle('hide',!s.q||!isBulk());$('atfield').classList.toggle('hide',isBulk());if(authHash)status()};
 $('amsel').onchange=$('asel').onchange;
 $('asel').onchange();
-$('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu()};
+$('aksel').onchange=()=>{fillDers($('adsel'),$('aksel').value,$('adsel').value);refreshAdminKonu();if(authHash)status()};
 $('adsel').onchange=()=>refreshAdminKonu();
 $('atsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
