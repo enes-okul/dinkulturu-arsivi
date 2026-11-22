@@ -807,8 +807,9 @@ $('aup').onclick=async()=>{
     const meta={ad:aFile.name,tarih:Date.now()};
     if(SEC[sid].q){
       const tp=$('aqsel').value;if(!tp)throw new Error('Önce bir konu seçin.');
-      const og=$('aqsel').selectedOptions[0]&&$('aqsel').selectedOptions[0].parentNode,so=$('aqsel').selectedOptions[0],isU=!!(so&&so.dataset.unit),targets=(isU||$('aall').checked)&&og&&og.tagName==='OPTGROUP'?[...og.children].filter(o=>!o.dataset.unit).map(o=>o.value):[tp];
-      const tl=targets.length>1?og.label+' ('+targets.length+' alt başlık)':tp;
+      const so=$('aqsel').selectedOptions[0],isU=!!(so&&so.dataset.unit),targets=isU?(unitSubs[so.value]||[]):[tp];
+      if(!targets.length)throw new Error('Bu ünitede alt başlık yok.');
+      const tl=isU?so.textContent+' ('+targets.length+' alt başlık)':tp;
       if(bulk){
         const parts=await bulkParts(await aFile.arrayBuffer());
         if(!parts.length)throw new Error('Dosyada soru türü başlığı bulunamadı.');
@@ -852,20 +853,21 @@ $('adsel').onchange=()=>{refreshAdminKonu();if(authHash)loadAdminTopics()};
 $('atsel').onchange=()=>refreshAdminKonu();
 $('ksel').onchange=()=>{store.set('KADEME',$('ksel').value);fillDers($('dsel'),$('ksel').value,$('dsel').value);openSec(cur,SEC[cur])};
 $('dsel').onchange=()=>{store.set('DERS',$('dsel').value);openSec(cur,SEC[cur])};
-function updAll(){const o=$('aqsel').selectedOptions[0],has=!!(o&&o.parentNode.tagName==='OPTGROUP'&&!o.dataset.unit);$('aallw').classList.toggle('hide',!has);if(!has)$('aall').checked=false}
+function updAll(){$('aallw').classList.add('hide');$('aall').checked=false}
 $('aqsel').addEventListener('change',updAll);
+let unitSubs={};
 async function refreshAdminKonu(){
   const q=SEC[asec()].q;$('aktwrap').classList.toggle('hide',!q);
   if(!q)return;$('aallw').classList.add('hide');
   const g=+$('aksel').value,d=$('adsel').value,sel=$('aqsel'),my=++akSeq,keep=sel.value,ty=$('atsel').value||'genel';
   sel.innerHTML='<option value="">Yükleniyor…</option>';$('aqstat').innerHTML='';
   const l=await loadTopics(g,d);if(my!==akSeq)return;
-  sel.innerHTML='';
+  sel.innerHTML='';unitSubs={};
   const us=parseTopics(l);
   if(!us.length){sel.innerHTML='<option value="">Önce Konular kartından konu ekleyin</option>';return}
   const leaves=[],opt=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;leaves.push(v);return o};
   us.forEach(u=>{
-    if(u.subs.length){const og=document.createElement('optgroup');og.label=u.name;const uo=document.createElement('option');uo.value='U§'+u.name;uo.dataset.unit='1';uo.textContent='★ Tüm ünite (bütün alt başlıklar)';og.appendChild(uo);u.subs.forEach(x=>og.appendChild(opt(x.key,x.label)));sel.appendChild(og)}
+    if(u.subs.length){const uo=document.createElement('option');uo.value='U§'+u.name;uo.dataset.unit='1';uo.textContent=u.name;sel.appendChild(uo);unitSubs[uo.value]=u.subs.map(x=>x.key);u.subs.forEach(x=>sel.appendChild(opt(x.key,'\u00A0\u00A0\u00A0\u00A0'+x.label)))}
     else sel.appendChild(opt(u.name,u.name));
   });
   if([...sel.options].some(o=>o.value===keep))sel.value=keep;
@@ -876,11 +878,11 @@ async function refreshAdminKonu(){
     metas[t]=m;
   }));
   const row=(key,label,isSub)=>{const m=metas[key];
-    if(bulk){const st=av&&av.get(qkey(key));const dp=esc(kkey(g,d)+'/'+qkey(key));return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(st&&st.size?[...st].map(x=>'<div>✅ '+esc(QTS[x]||x)+' <button class="del" data-p="'+dp+'" data-ty="'+esc(x)+'" data-t="'+esc(key)+'">Sil</button></div>').join('')+'<div><button class="del" data-p="'+dp+'" data-ty="*" data-t="'+esc(key)+'">Tümünü sil</button></div>':'—')+'</b></div>'}
+    if(bulk){const st=av&&av.get(qkey(key));const dp=esc(kkey(g,d)+'/'+qkey(key));return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(st&&st.size?'<small style="font-weight:600;color:var(--muted)">✅ '+[...st].map(x=>esc(QTS[x]||x)).join(' · ')+'</small> <button class="del" data-p="'+dp+'" data-ty="*" data-t="'+esc(key)+'">Sil</button>':'—')+'</b></div>'}
     return '<div class="srow'+(isSub?' sub':'')+'"><span>'+esc(label)+'</span><b>'+(m&&m.ad?'✅ '+esc(m.ad)+' <button class="del" data-p="'+esc(kkey(g,d)+'/'+qkey(key))+'" data-ty="'+esc(ty)+'" data-t="'+esc(key)+'">Sil</button>':'—')+'</b></div>'};
   const rows=[];
   us.forEach(u=>{
-    if(u.subs.length){rows.push('<div class="srow ugrp"><span>'+esc(u.name)+'</span></div>');u.subs.forEach(x=>rows.push(row(x.key,x.label,true)))}
+    if(u.subs.length){rows.push('<div class="srow ugrp"><span>'+esc(u.name)+'</span><b><button class="del" data-us="'+esc(JSON.stringify(u.subs.map(x=>x.key)))+'" data-ty="'+(bulk?'*':ty)+'" data-t="'+esc(u.name)+'">Üniteyi sil</button></b></div>');u.subs.forEach(x=>rows.push(row(x.key,x.label,true)))}
     else rows.push(row(u.name,u.name,false));
   });
   if(my!==akSeq)return;
@@ -888,10 +890,15 @@ async function refreshAdminKonu(){
 }
 $('aqstat').onclick=async e=>{
   const b=e.target.closest('.del');if(!b||!authHash)return;
-  const ty=b.dataset.ty||'genel';
-  if(!confirm(b.dataset.t+' — '+(ty==='*'?'tüm soru dosyaları':QTN[ty]+' soru dosyası')+' silinsin mi?'))return;
+  const ty=b.dataset.ty||'genel',isU=!!b.dataset.us,g=+$('aksel').value,d=$('adsel').value;
+  const keys=isU?JSON.parse(b.dataset.us):[b.dataset.t],what=ty==='*'?'tüm soru dosyaları':QTN[ty]+' soru dosyası';
+  if(!confirm(b.dataset.t+(isU?' ünitesindeki ('+keys.length+' alt başlık) ':' — ')+what+' silinsin mi?'))return;
   b.disabled=true;msg('aerr','');msg('aok','');
-  try{const us=ty==='*'?[b.dataset.p]:ty==='genel'?[b.dataset.p+'/meta',b.dataset.p+'/dosya']:[b.dataset.p+'/t/'+ty];for(const u of us){const r=await fetch(QDB+'/'+u+'.json',{method:'DELETE'});if(!r.ok)throw 0}msg('aok','🗑️ '+(ty==='*'?'Tüm soru dosyaları':QTN[ty]+' soru dosyası')+' silindi.')}
+  try{
+    for(const k of keys){const p=kkey(g,d)+'/'+qkey(k);
+      const us=ty==='*'?[p]:ty==='genel'?[p+'/meta',p+'/dosya']:[p+'/t/'+ty];
+      for(const u of us){const r=await fetch(QDB+'/'+u+'.json',{method:'DELETE'});if(!r.ok)throw 0}}
+    msg('aok','🗑️ '+(isU?b.dataset.t+': ':'')+(ty==='*'?'Tüm soru dosyaları':QTN[ty]+' soru dosyası')+' silindi.')}
   catch(err){msg('aerr','Silinemedi. Firebase kuralları silmeye izin vermiyor olabilir.');b.disabled=false;return}
   refreshAdminKonu();
 };
